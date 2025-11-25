@@ -10,12 +10,12 @@ public static class Program
     }
     private static void TestFunc()
     {
-        ulong min = 1, max = 1_000_000;
+        ulong min = 1, max = 1_00_000;
         Console.WriteLine($"TestFunc {FindPrimeCount(min, max)}");
     }
     private static void TestParallelFunc()
     {
-        ulong min = 1, max = 1_000_000;
+        ulong min = 1, max = 1_00_000;
         ulong countTasks = 10;
         ulong subRange = max / countTasks;
         Task[] tasks = new Task[countTasks];
