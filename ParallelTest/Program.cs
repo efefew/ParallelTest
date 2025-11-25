@@ -1,6 +1,8 @@
 ﻿using System.Diagnostics;
 using System.Reflection;
 
+using ILGPU;
+
 public static class Program
 {
     public static void Main()
@@ -46,6 +48,11 @@ public static class Program
         {
             array[idTask] = FindPrimeCount(min + (subRange * idTask), min + ((subRange * (idTask + 1)) - 1));
         };
+    }
+
+    static void AddKernel(Index1D index, ArrayView<float> a, ArrayView<float> b, ArrayView<float> c)
+    {
+        c[index] = a[index] + b[index];
     }
 
     static bool IsPrime(ulong n)
