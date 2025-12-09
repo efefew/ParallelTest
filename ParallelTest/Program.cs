@@ -1,13 +1,13 @@
-﻿using System.Diagnostics;
+﻿using ILGPU;
+using ILGPU.Runtime;
+using System.Diagnostics;
 using System.Reflection;
-
-using ILGPU;
 
 public static class Program
 {
     public static void Main()
     {
-        Tests.CompareTestTimes(TestParallelFunc, TestFunc);
+        Tests.CompareTestTimes(TestILGPUFunc, TestParallelFunc);
         Console.ReadLine();
     }
     private static void TestFunc()
@@ -18,7 +18,7 @@ public static class Program
     private static void TestParallelFunc()
     {
         ulong min = 1, max = 1_00_000;
-        ulong countTasks = 10;
+        ulong countTasks = 1024;
         ulong subRange = max / countTasks;
         Task[] tasks = new Task[countTasks];
         ulong[] array = new ulong[countTasks];
@@ -41,19 +41,48 @@ public static class Program
         Console.WriteLine($"TestParallelFunc {sum}");
 
     }
+    private static void TestILGPUFunc()
+    {
+        ulong min = 1, max = 1_00_000;
+        ulong countTasks = 1024;
+        ulong subRange = max / countTasks;
+        ulong[] array = new ulong[countTasks];
 
-    private static Action FindSubPrimeCount(ulong min, ulong subRange, ulong[] array, ulong idTask)
+        Context context = Context.CreateDefault();
+        Accelerator accelerator = context.GetPreferredDevice(preferCPU: false).CreateAccelerator(context);
+
+        Action<Index1D, VariableView<ulong>, VariableView<ulong>, ArrayView<ulong>> loadedKernel =
+    accelerator.LoadAutoGroupedStreamKernel<Index1D, VariableView<ulong>, VariableView<ulong>, ArrayView<ulong>>(FindSubPrimeCountKernel);
+
+
+        accelerator.Synchronize();
+
+        accelerator.Dispose();
+        context.Dispose();
+        ulong sum = 0;
+        for (ulong idTask = 0; idTask < countTasks; idTask++)
+            sum += array[idTask];
+
+        Console.WriteLine($"TestParallelFunc {sum}");
+
+    }
+
+    private static Action FindSubPrimeCount(ulong min, ulong subRange, ulong[] output, ulong idTask)
     {
         return () =>
         {
-            array[idTask] = FindPrimeCount(min + (subRange * idTask), min + ((subRange * (idTask + 1)) - 1));
+            output[idTask] = FindPrimeCount(min + (subRange * idTask), min + ((subRange * (idTask + 1)) - 1));
         };
     }
 
-    static void AddKernel(Index1D index, ArrayView<float> a, ArrayView<float> b, ArrayView<float> c)
+    static void FindSubPrimeCountKernel(Index1D idTask, VariableView<ulong> min, VariableView<ulong> subRange, ArrayView<ulong> output)
     {
-        c[index] = a[index] + b[index];
+        ulong taskId = (ulong)idTask;
+        ulong start = min.Value + (subRange.Value * taskId);
+        ulong end = min.Value + (subRange.Value * (taskId + 1)) - 1;
+        output[idTask] = FindPrimeCount(start, end);
     }
+
 
     static bool IsPrime(ulong n)
     {
