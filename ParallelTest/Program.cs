@@ -1,5 +1,8 @@
 ﻿using ILGPU;
 using ILGPU.Runtime;
+using ILGPU.Runtime.CPU;
+using ILGPU.Runtime.Cuda;
+using ILGPU.Runtime.OpenCL;
 using System.Diagnostics;
 using System.Reflection;
 
@@ -7,17 +10,17 @@ public static class Program
 {
     public static void Main()
     {
-        Tests.CompareTestTimes(TestILGPUFunc, TestParallelFunc);
+        Tests.CompareTestTimes(TestParallelFunc, TestILGPUFunc);
         Console.ReadLine();
     }
     private static void TestFunc()
     {
-        ulong min = 1, max = 1_00_000;
+        ulong min = 0, max = 1_00_000;
         Console.WriteLine($"TestFunc {FindPrimeCount(min, max)}");
     }
     private static void TestParallelFunc()
     {
-        ulong min = 1, max = 1_00_000;
+        ulong min = 0, max = 1_000_000;
         ulong countTasks = 1024;
         ulong subRange = max / countTasks;
         Task[] tasks = new Task[countTasks];
@@ -41,29 +44,36 @@ public static class Program
         Console.WriteLine($"TestParallelFunc {sum}");
 
     }
+    public static void GGG<T>(T d)
+    {
+
+    }
     private static void TestILGPUFunc()
     {
-        ulong min = 1, max = 1_00_000;
-        ulong countTasks = 1024;
-        ulong subRange = max / countTasks;
+        ulong min = 0, max = 1_000;
+        int countTasks = 1024;
+        ulong subRange = max / (ulong)countTasks;
         ulong[] array = new ulong[countTasks];
 
         Context context = Context.CreateDefault();
-        Accelerator accelerator = context.GetPreferredDevice(preferCPU: false).CreateAccelerator(context);
+        Accelerator accelerator = context.CreateCudaAccelerator(0);//GetPreferredDevice(preferCPU: false).CreateAccelerator(context);
 
-        Action<Index1D, VariableView<ulong>, VariableView<ulong>, ArrayView<ulong>> loadedKernel =
-    accelerator.LoadAutoGroupedStreamKernel<Index1D, VariableView<ulong>, VariableView<ulong>, ArrayView<ulong>>(FindSubPrimeCountKernel);
+        Action<Index1D, ulong, ulong, ArrayView<ulong>> loadedKernel =
+    accelerator.LoadAutoGroupedStreamKernel<Index1D, ulong, ulong, ArrayView<ulong>>(FindSubPrimeCountKernel);
+        
+        var array_dev = accelerator.Allocate1D<ulong>(countTasks);
 
-
+        loadedKernel(countTasks, min, subRange, array_dev.View);
         accelerator.Synchronize();
+        array = array_dev.GetAsArray1D();
 
         accelerator.Dispose();
         context.Dispose();
         ulong sum = 0;
-        for (ulong idTask = 0; idTask < countTasks; idTask++)
+        for (int idTask = 0; idTask < countTasks; idTask++)
             sum += array[idTask];
 
-        Console.WriteLine($"TestParallelFunc {sum}");
+        Console.WriteLine($"TestILGPUFunc {sum}");
 
     }
 
@@ -75,11 +85,11 @@ public static class Program
         };
     }
 
-    static void FindSubPrimeCountKernel(Index1D idTask, VariableView<ulong> min, VariableView<ulong> subRange, ArrayView<ulong> output)
+    static void FindSubPrimeCountKernel(Index1D idTask, ulong min, ulong subRange, ArrayView<ulong> output)
     {
         ulong taskId = (ulong)idTask;
-        ulong start = min.Value + (subRange.Value * taskId);
-        ulong end = min.Value + (subRange.Value * (taskId + 1)) - 1;
+        ulong start = min + (subRange * taskId);
+        ulong end = min + (subRange * (taskId + 1)) - 1;
         output[idTask] = FindPrimeCount(start, end);
     }
 
