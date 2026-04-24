@@ -10,13 +10,8 @@ public static class Program
 {
     public static void Main()
     {
-        Tests.CompareTestTimes(TestParallelFunc, TestILGPUFunc);
+        TestParallelFunc();
         Console.ReadLine();
-    }
-    private static void TestFunc()
-    {
-        ulong min = 0, max = 1_00_000;
-        Console.WriteLine($"TestFunc {FindPrimeCount(min, max)}");
     }
     private static void TestParallelFunc()
     {
@@ -44,39 +39,7 @@ public static class Program
         Console.WriteLine($"TestParallelFunc {sum}");
 
     }
-    public static void GGG<T>(T d)
-    {
-
-    }
-    private static void TestILGPUFunc()
-    {
-        ulong min = 0, max = 1_000;
-        int countTasks = 1024;
-        ulong subRange = max / (ulong)countTasks;
-        ulong[] array = new ulong[countTasks];
-
-        Context context = Context.CreateDefault();
-        Accelerator accelerator = context.CreateCudaAccelerator(0);//GetPreferredDevice(preferCPU: false).CreateAccelerator(context);
-
-        Action<Index1D, ulong, ulong, ArrayView<ulong>> loadedKernel =
-    accelerator.LoadAutoGroupedStreamKernel<Index1D, ulong, ulong, ArrayView<ulong>>(FindSubPrimeCountKernel);
-        
-        var array_dev = accelerator.Allocate1D<ulong>(countTasks);
-
-        loadedKernel(countTasks, min, subRange, array_dev.View);
-        accelerator.Synchronize();
-        array = array_dev.GetAsArray1D();
-
-        accelerator.Dispose();
-        context.Dispose();
-        ulong sum = 0;
-        for (int idTask = 0; idTask < countTasks; idTask++)
-            sum += array[idTask];
-
-        Console.WriteLine($"TestILGPUFunc {sum}");
-
-    }
-
+   
     private static Action FindSubPrimeCount(ulong min, ulong subRange, ulong[] output, ulong idTask)
     {
         return () =>
@@ -84,15 +47,6 @@ public static class Program
             output[idTask] = FindPrimeCount(min + (subRange * idTask), min + ((subRange * (idTask + 1)) - 1));
         };
     }
-
-    static void FindSubPrimeCountKernel(Index1D idTask, ulong min, ulong subRange, ArrayView<ulong> output)
-    {
-        ulong taskId = (ulong)idTask;
-        ulong start = min + (subRange * taskId);
-        ulong end = min + (subRange * (taskId + 1)) - 1;
-        output[idTask] = FindPrimeCount(start, end);
-    }
-
 
     static bool IsPrime(ulong n)
     {
@@ -124,27 +78,170 @@ public static class Program
         return count;
     }
 }
-public static class Tests
+public class MaterialStream
 {
-    public static TimeSpan TestTime(Action method, int count = 1)
+    public string Name;
+    public float Tin, Tout;
+    public float W;
+
+    public MaterialStream()
     {
-        Stopwatch stopwatch = new();
-        stopwatch.Start();
-        for (int id = 0; id < count; id++)
-            method?.Invoke();
-        stopwatch.Stop();
-        TimeSpan elapsed = stopwatch.Elapsed;
-        Console.WriteLine($"Метод {method!.GetMethodInfo().Name} выполнялся: {elapsed} времени и {count} раз");
-        return elapsed;
+        Name = string.Empty;
+        W = 0;
+        Tin = 0;
+        Tout = 0;
     }
 
-    public static void CompareTestTimes(Action method1, Action method2, int count = 1)
+    public MaterialStream(float tin, float tout)
     {
-        TimeSpan span1 = TestTime(method1, count);
-        TimeSpan span2 = TestTime(method2, count);
-        Console.WriteLine(
-            span1.TotalMilliseconds < span2.TotalMilliseconds
-                ? $"Метод {method1.GetMethodInfo().Name} выполнялся в {span2.TotalMilliseconds / span1.TotalMilliseconds} раз быстрее"
-                : $"Метод {method2.GetMethodInfo().Name} выполнялся в {span1.TotalMilliseconds / span2.TotalMilliseconds} раз быстрее");
+        Name = string.Empty;
+        Tin = tin;
+        Tout = tout;
+    }
+
+    public MaterialStream(string name, float w, float tin, float tout)
+    {
+        Name = name;
+        W = w;
+        Tin = tin;
+        Tout = tout;
+    }
+
+    public void AddT(float t)
+    {
+        Tin += t;
+        Tout += t;
+    }
+
+    public void Copy(MaterialStream stream)
+    {
+        Name = stream.Name;
+        W = stream.W;
+        Tin = stream.Tin;
+        Tout = stream.Tout;
     }
 }
+public class EnthalpyInterval
+{
+    public double EnthalpyIn, EnthalpyOut;
+    public double TemperatureColdIn, TemperatureColdOut;
+    public double TemperatureHotIn, TemperatureHotOut;
+
+    public Dictionary<int, MaterialStream> HotStreams, ColdStreams;
+    public double GetBetaCold(int idStream)
+    {
+        if (!HotStreams.ContainsKey(idStream))
+            return 0;
+        double wStreams = HotStreams.Sum(stream => stream.Value.W);
+        return HotStreams[idStream].W / wStreams;
+    }
+    public double GetBetaHot(int idStream)
+    {
+        if (!ColdStreams.ContainsKey(idStream))
+            return 0;
+        double wInInterval = ColdStreams.Sum(stream => stream.Value.W);
+        return ColdStreams[idStream].W / wInInterval;
+    }
+    public double GetAlphaHot(int idStream)
+    {
+        if (!HotStreams.ContainsKey(idStream))
+            return 0;
+        double deltaTemperatureInStream = HotStreams[idStream].Tin - HotStreams[idStream].Tout;
+        double deltaTemperatureInInterval = TemperatureHotIn - TemperatureHotOut;
+        return deltaTemperatureInInterval / deltaTemperatureInStream;
+    }
+    public double GetAlphaCold(int idStream)
+    {
+        if (!ColdStreams.ContainsKey(idStream))
+            return 0;
+        double deltaTemperatureInStream = ColdStreams[idStream].Tout - ColdStreams[idStream].Tin;
+        double deltaTemperatureInInterval = TemperatureColdOut - TemperatureColdIn;
+        return deltaTemperatureInInterval / deltaTemperatureInStream;
+    }
+}
+
+public struct ConfigEBST
+{
+    public double MinDeltaT, CGamma, Years;
+}
+public class EBST
+{
+    private static double GetLMTD(EnthalpyInterval interval)
+    {
+        double dT1 = interval.TemperatureHotOut - interval.TemperatureColdIn;
+        double dT2 = interval.TemperatureHotIn - interval.TemperatureColdOut;
+        return dT1 == dT2 ? dT1 : (dT1 - dT2) / Math.Log(dT1 / dT2);
+    }
+
+    public void GetRecuperator()
+    {
+
+    }
+    public void GetCooler(EnthalpyInterval interval)
+    {
+        double LMTD = GetLMTD(interval);
+        double square = 0;//площадь холодильника
+        double operatingCost = 0.0;//эксплуатационные затраты
+        double capitalCost = 0.0;//капитальные затраты
+        double summCost = operatingCost + capitalCost;//суммарные затраты
+        //тепловая нагрузка
+    }
+    public void GetHeater()
+    {
+
+    }
+}
+//function[summ] = CalculateRecuperator(i, j, var, dQ, T11, T12, T21, T22, isMax) % Расчет рекуператора
+//    global CFI CFJ Ahe Khe CA C_gamma year dQhe Nh_streams Nq_i Nl_i Nc_streams Nq_j Nl_j;
+//global Nc_sec_u Nh_sec_u Cu_sec_u;
+//deltaT = INPUT.AverageLogarithmicDeltaTemperature(T11, T12, T21, T22);
+//U = 1 / (1 / CFI(i) + 1 / CFJ(j));
+//Ahe(i, j) = dQ / (deltaT * U); % площадь теплообмена
+//        if ~isempty(isMax)
+//            isMax = false;
+//end
+//maxLength = max((Nh_streams - Nh_sec_u) * Nq_i * Nl_i, (Nc_streams - Nc_sec_u) * Nq_j * Nl_j);
+//if (~isMax && i > (Nh_streams - Nh_sec_u) * Nq_i * Nl_i || j > (Nc_streams - Nc_sec_u) * Nq_j * Nl_j) || (isMax && i > maxLength || j > maxLength)
+//            if (~isMax && i > (Nh_streams - Nh_sec_u) * Nq_i * Nl_i && j > (Nc_streams - Nc_sec_u) * Nq_j * Nl_j) || (isMax && i > maxLength && j > maxLength)
+//                Cu_ = realmax;
+//            else
+//    Cu_ = Cu_sec_u;
+//end
+//        else
+//            Cu_ = 0;
+//end
+//Ehe = dQ * Cu_; % эксплуатационные затраты
+//        Khe(i, j) = (CA * power(Ahe(i, j), C_gamma)) / year; % капитальные затраты
+//        summ = Khe(i, j) + Ehe;
+//summ = summ / (dQhe(i, j) ^ var) * (dQhe(i, j)~=0);
+//end
+
+//function[summ] = CalculateHeater(i, j, var, dQ, T11, T12, T21, T22) % Расчет нагревателя
+//        global CFJ CFUh Ah Kreb Ereb CA C_gamma Chu year dQreb;
+//deltaT = INPUT.AverageLogarithmicDeltaTemperature(T11, T12, T21, T22);
+//U = 1 / (1 / CFJ(j) + 1 / CFUh);
+//Ah(i, j) = dQ / (deltaT * U); % площадь нагревателя
+
+//        Ereb(i, j) = dQ * Chu; % эксплуатационные затраты
+//        Kreb(i, j) = (CA * power(Ah(i, j), C_gamma)) / year; % капитальные затраты
+//        summ = Ereb(i, j) + Kreb(i, j);
+//summ = summ / (dQreb(i, j) ^ var) * (dQreb(i, j)~=0);
+//end
+
+//function[summ] = CalculateCoooler(i, j, var, dQ, T11, T12, T21, T22) % Расчет холодильника
+//        global CFI CFUc Ac Kcol Ecol CA C_gamma Ccu year dQcol;
+//deltaT = INPUT.AverageLogarithmicDeltaTemperature(T11, T12, T21, T22);
+//U = 1 / (1 / CFI(i) + 1 / CFUc);
+//Ac(i, j) = dQ / (deltaT * U); % площадь холодильника
+
+//        Ecol(i, j) = dQ * Ccu; % эксплуатационные затраты
+//        Kcol(i, j) = (CA * power(Ac(i, j), C_gamma)) / year; % капитальные затраты
+//        summ = Ecol(i, j) + Kcol(i, j);
+//summ = summ / (dQcol(i, j) ^ var) * (dQcol(i, j)~=0);
+//end
+
+//function[deltaT] = AverageLogarithmicDeltaTemperature(T11, T12, T21, T22) % Среднелогарифмическая разность температур
+//        dt1 = T11 - T12;
+//dt2 = T21 - T22;
+//deltaT = power(dt1 * dt2 * (dt1 + dt2) / 2, 1 / 3);
+//end
