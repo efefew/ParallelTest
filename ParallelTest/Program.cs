@@ -6,7 +6,7 @@ using ILGPU.Runtime.OpenCL;
 using System.Diagnostics;
 using System.Reflection;
 
-public static class Program
+internal static class Program
 {
     public static void Main()
     {
@@ -78,13 +78,13 @@ public static class Program
         return count;
     }
 }
-public class MaterialStream
+public class EnergyStream
 {
     public string Name;
     public float Tin, Tout;
     public float W;
 
-    public MaterialStream()
+    public EnergyStream()
     {
         Name = string.Empty;
         W = 0;
@@ -92,14 +92,14 @@ public class MaterialStream
         Tout = 0;
     }
 
-    public MaterialStream(float tin, float tout)
+    public EnergyStream(float tin, float tout)
     {
         Name = string.Empty;
         Tin = tin;
         Tout = tout;
     }
 
-    public MaterialStream(string name, float w, float tin, float tout)
+    public EnergyStream(string name, float w, float tin, float tout)
     {
         Name = name;
         W = w;
@@ -113,7 +113,7 @@ public class MaterialStream
         Tout += t;
     }
 
-    public void Copy(MaterialStream stream)
+    public void Copy(EnergyStream stream)
     {
         Name = stream.Name;
         W = stream.W;
@@ -127,7 +127,7 @@ public class EnthalpyInterval
     public double TemperatureColdIn, TemperatureColdOut;
     public double TemperatureHotIn, TemperatureHotOut;
 
-    public Dictionary<int, MaterialStream> HotStreams, ColdStreams;
+    public Dictionary<int, EnergyStream> HotStreams, ColdStreams;
     public double GetBetaCold(int idStream)
     {
         if (!HotStreams.ContainsKey(idStream))
@@ -162,86 +162,105 @@ public class EnthalpyInterval
 
 public struct ConfigEBST
 {
-    public double MinDeltaT, CGamma, Years;
+    public double MinDeltaT, CGamma, Years, CostExponent;
 }
 public class EBST
 {
+    private ConfigEBST _config;
+    public EBST(ConfigEBST config)
+    {
+        _config = config;
+    }
+    /// <summary>
+    /// Среднелогарифмический температурный напор
+    /// </summary>
+    /// <param name="interval">Интервал</param>
+    /// <returns></returns>
     private static double GetLMTD(EnthalpyInterval interval)
     {
         double dT1 = interval.TemperatureHotOut - interval.TemperatureColdIn;
         double dT2 = interval.TemperatureHotIn - interval.TemperatureColdOut;
-        return dT1 == dT2 ? dT1 : (dT1 - dT2) / Math.Log(dT1 / dT2);
+        return Math.Abs(dT1 - dT2) < TOLERANCE ? dT1 : (dT1 - dT2) / Math.Log(dT1 / dT2);
     }
 
-    public void GetRecuperator()
-    {
+    private const double TOLERANCE = 1e-5;
 
-    }
-    public void GetCooler(EnthalpyInterval interval)
+    public double CalculateRecuperator(EnthalpyInterval interval, double costRecuperator, double cost, double heatLoad, double heatTransferCoeff, double heatTransferExternalCoeff)
     {
-        double LMTD = GetLMTD(interval);
-        double square = 0;//площадь холодильника
-        double operatingCost = 0.0;//эксплуатационные затраты
-        double capitalCost = 0.0;//капитальные затраты
-        double summCost = operatingCost + capitalCost;//суммарные затраты
-        //тепловая нагрузка
+        double deltaT = GetLMTD(interval);
+        double overallHeatTransferCoeff = 1 / (1 / heatTransferCoeff + 1 / heatTransferExternalCoeff);
+        
+        double area = heatLoad / (deltaT * overallHeatTransferCoeff);
+        
+        /*if ~isempty(isMax)
+        isMax = false;
+        end
+            maxLength = max((Nh_streams-Nh_sec_u)*Nq_i*Nl_i,(Nc_streams-Nc_sec_u)*Nq_j*Nl_j);
+        if (~isMax && i > (Nh_streams-Nh_sec_u)*Nq_i*Nl_i || j > (Nc_streams-Nc_sec_u)*Nq_j*Nl_j) || (isMax && i > maxLength || j > maxLength)
+        if (~isMax && i > (Nh_streams-Nh_sec_u)*Nq_i*Nl_i && j > (Nc_streams-Nc_sec_u)*Nq_j*Nl_j) || (isMax && i > maxLength && j > maxLength)
+        Cu_ = realmax;
+        else
+        Cu_ = Cu_sec_u;
+        end
+        else
+        Cu_ = 0;
+        end*/
+        
+        double operatingCost = heatLoad * cost;
+        double capitalCost = (costRecuperator * Math.Pow(area, _config.CGamma)) / _config.Years;
+        double summCost = operatingCost + capitalCost;
+        return (heatLoad != 0) ? (summCost / Math.Pow(heatLoad, _config.CostExponent)) : 0.0;
     }
-    public void GetHeater()
+    /// <summary>
+    /// Рассчитать нагреватель
+    /// </summary>
+    /// <param name="interval">Интервал температур</param>
+    /// <param name="costRecuperator">Стоимость рекуператора</param>
+    /// <param name="costHeater">Стоимость нагревателя</param>
+    /// <param name="heatLoad">Тепловая нагрузка</param>
+    /// <param name="heatTransferCoeff">Коэффициент теплопередачи горячей утилиты</param>
+    /// <param name="heatTransferExternalCoeff">Коэффициент теплопередачи внешней горячей утилиты</param>
+    /// <returns>Cуммарные затраты</returns>
+    public double CalculateHeater(EnthalpyInterval interval, double costRecuperator, double costHeater, double heatLoad, double heatTransferCoeff, double heatTransferExternalCoeff)
     {
+        return CalculateUtility(interval, costRecuperator, costHeater, heatLoad, heatTransferCoeff, heatTransferExternalCoeff);
+    }
+    /// <summary>
+    /// Рассчитать холодильник
+    /// </summary>
+    /// <param name="interval">Интервал температур</param>
+    /// <param name="costRecuperator">Стоимость рекуператора</param>
+    /// <param name="costCooler">Стоимость холодильника</param>
+    /// <param name="heatLoad">Тепловая нагрузка</param>
+    /// <param name="heatTransferCoeff">Коэффициент теплопередачи холодной утилиты</param>
+    /// <param name="heatTransferExternalCoeff">Коэффициент теплопередачи внешней холодной утилиты</param>
+    /// <returns>Cуммарные затраты</returns>
+    public double CalculateCooler(EnthalpyInterval interval, double costRecuperator, double costCooler, double heatLoad, double heatTransferCoeff, double heatTransferExternalCoeff)
+    {
+        return CalculateUtility(interval, costRecuperator, costCooler, heatLoad, heatTransferCoeff, heatTransferExternalCoeff);
+    }   
+    /// <summary>
+    /// Рассчитать утилиту
+    /// </summary>
+    /// <param name="interval">Интервал температур</param>
+    /// <param name="costRecuperator">Стоимость рекуператора</param>
+    /// <param name="cost">Стоимость утилиты</param>
+    /// <param name="heatLoad">Тепловая нагрузка</param>
+    /// <param name="heatTransferCoeff">Коэффициент теплопередачи утилиты</param>
+    /// <param name="heatTransferExternalCoeff">Коэффициент теплопередачи внешней утилиты</param>
+    /// <returns>Cуммарные затраты</returns>
+    private double CalculateUtility(EnthalpyInterval interval, double costRecuperator, double cost, double heatLoad, double heatTransferCoeff, double heatTransferExternalCoeff)
+    {
+        double deltaT = GetLMTD(interval);
+        //TODO общий коэффициент теплопередачи (без учёта сопротивления стенки R=δ/λ)
+        double overallHeatTransferCoeff = 1 / (1 / heatTransferCoeff + 1 / heatTransferExternalCoeff);
+        
+        double area = heatLoad / (deltaT * overallHeatTransferCoeff);
+        
+        double operatingCost = heatLoad * cost;
+        double capitalCost = (costRecuperator * Math.Pow(area, _config.CGamma)) / _config.Years;
+        double summCost = operatingCost + capitalCost;
+        return (heatLoad != 0) ? (summCost / Math.Pow(heatLoad, _config.CostExponent)) : 0.0;
+    }
 
-    }
 }
-//function[summ] = CalculateRecuperator(i, j, var, dQ, T11, T12, T21, T22, isMax) % Расчет рекуператора
-//    global CFI CFJ Ahe Khe CA C_gamma year dQhe Nh_streams Nq_i Nl_i Nc_streams Nq_j Nl_j;
-//global Nc_sec_u Nh_sec_u Cu_sec_u;
-//deltaT = INPUT.AverageLogarithmicDeltaTemperature(T11, T12, T21, T22);
-//U = 1 / (1 / CFI(i) + 1 / CFJ(j));
-//Ahe(i, j) = dQ / (deltaT * U); % площадь теплообмена
-//        if ~isempty(isMax)
-//            isMax = false;
-//end
-//maxLength = max((Nh_streams - Nh_sec_u) * Nq_i * Nl_i, (Nc_streams - Nc_sec_u) * Nq_j * Nl_j);
-//if (~isMax && i > (Nh_streams - Nh_sec_u) * Nq_i * Nl_i || j > (Nc_streams - Nc_sec_u) * Nq_j * Nl_j) || (isMax && i > maxLength || j > maxLength)
-//            if (~isMax && i > (Nh_streams - Nh_sec_u) * Nq_i * Nl_i && j > (Nc_streams - Nc_sec_u) * Nq_j * Nl_j) || (isMax && i > maxLength && j > maxLength)
-//                Cu_ = realmax;
-//            else
-//    Cu_ = Cu_sec_u;
-//end
-//        else
-//            Cu_ = 0;
-//end
-//Ehe = dQ * Cu_; % эксплуатационные затраты
-//        Khe(i, j) = (CA * power(Ahe(i, j), C_gamma)) / year; % капитальные затраты
-//        summ = Khe(i, j) + Ehe;
-//summ = summ / (dQhe(i, j) ^ var) * (dQhe(i, j)~=0);
-//end
-
-//function[summ] = CalculateHeater(i, j, var, dQ, T11, T12, T21, T22) % Расчет нагревателя
-//        global CFJ CFUh Ah Kreb Ereb CA C_gamma Chu year dQreb;
-//deltaT = INPUT.AverageLogarithmicDeltaTemperature(T11, T12, T21, T22);
-//U = 1 / (1 / CFJ(j) + 1 / CFUh);
-//Ah(i, j) = dQ / (deltaT * U); % площадь нагревателя
-
-//        Ereb(i, j) = dQ * Chu; % эксплуатационные затраты
-//        Kreb(i, j) = (CA * power(Ah(i, j), C_gamma)) / year; % капитальные затраты
-//        summ = Ereb(i, j) + Kreb(i, j);
-//summ = summ / (dQreb(i, j) ^ var) * (dQreb(i, j)~=0);
-//end
-
-//function[summ] = CalculateCoooler(i, j, var, dQ, T11, T12, T21, T22) % Расчет холодильника
-//        global CFI CFUc Ac Kcol Ecol CA C_gamma Ccu year dQcol;
-//deltaT = INPUT.AverageLogarithmicDeltaTemperature(T11, T12, T21, T22);
-//U = 1 / (1 / CFI(i) + 1 / CFUc);
-//Ac(i, j) = dQ / (deltaT * U); % площадь холодильника
-
-//        Ecol(i, j) = dQ * Ccu; % эксплуатационные затраты
-//        Kcol(i, j) = (CA * power(Ac(i, j), C_gamma)) / year; % капитальные затраты
-//        summ = Ecol(i, j) + Kcol(i, j);
-//summ = summ / (dQcol(i, j) ^ var) * (dQcol(i, j)~=0);
-//end
-
-//function[deltaT] = AverageLogarithmicDeltaTemperature(T11, T12, T21, T22) % Среднелогарифмическая разность температур
-//        dt1 = T11 - T12;
-//dt2 = T21 - T22;
-//deltaT = power(dt1 * dt2 * (dt1 + dt2) / 2, 1 / 3);
-//end
