@@ -77,6 +77,12 @@ internal static class Program
 
         return count;
     }
+
+    //РЕШЕНИЕ ЗАДАЧИ MILP
+    public static void SolvingMILP()
+    {
+
+    }
 }
 public class EnergyStream
 {
