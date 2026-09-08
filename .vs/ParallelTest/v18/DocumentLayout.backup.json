@@ -3,8 +3,24 @@
   "WorkspaceRootPath": "C:\\Users\\Roman\\Documents\\GitHub\\ParallelTest\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{4B2B430D-5090-4A57-A2F0-E3C389D45C63}|ParallelTest\\ParallelTest.csproj|c:\\users\\roman\\documents\\github\\paralleltest\\paralleltest\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4B2B430D-5090-4A57-A2F0-E3C389D45C63}|ParallelTest\\ParallelTest.csproj|solutionrelative:paralleltest\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{4B2B430D-5090-4A57-A2F0-E3C389D45C63}|ParallelTest\\ParallelTest.csproj|c:\\users\\roman\\documents\\github\\paralleltest\\paralleltest\\main\\energystream.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4B2B430D-5090-4A57-A2F0-E3C389D45C63}|ParallelTest\\ParallelTest.csproj|solutionrelative:paralleltest\\main\\energystream.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4B2B430D-5090-4A57-A2F0-E3C389D45C63}|ParallelTest\\ParallelTest.csproj|c:\\users\\roman\\documents\\github\\paralleltest\\paralleltest\\main\\fullenergystream.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4B2B430D-5090-4A57-A2F0-E3C389D45C63}|ParallelTest\\ParallelTest.csproj|solutionrelative:paralleltest\\main\\fullenergystream.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4B2B430D-5090-4A57-A2F0-E3C389D45C63}|ParallelTest\\ParallelTest.csproj|c:\\users\\roman\\documents\\github\\paralleltest\\paralleltest\\main\\ebst.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4B2B430D-5090-4A57-A2F0-E3C389D45C63}|ParallelTest\\ParallelTest.csproj|solutionrelative:paralleltest\\main\\ebst.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4B2B430D-5090-4A57-A2F0-E3C389D45C63}|ParallelTest\\ParallelTest.csproj|c:\\users\\roman\\documents\\github\\paralleltest\\paralleltest\\main\\milp.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4B2B430D-5090-4A57-A2F0-E3C389D45C63}|ParallelTest\\ParallelTest.csproj|solutionrelative:paralleltest\\main\\milp.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4B2B430D-5090-4A57-A2F0-E3C389D45C63}|ParallelTest\\ParallelTest.csproj|c:\\users\\roman\\documents\\github\\paralleltest\\paralleltest\\main\\configebst.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4B2B430D-5090-4A57-A2F0-E3C389D45C63}|ParallelTest\\ParallelTest.csproj|solutionrelative:paralleltest\\main\\configebst.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -14,19 +30,72 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 1,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "Program.cs",
-              "DocumentMoniker": "C:\\Users\\Roman\\Documents\\GitHub\\ParallelTest\\ParallelTest\\Program.cs",
-              "RelativeDocumentMoniker": "ParallelTest\\Program.cs",
-              "ToolTip": "C:\\Users\\Roman\\Documents\\GitHub\\ParallelTest\\ParallelTest\\Program.cs",
-              "RelativeToolTip": "ParallelTest\\Program.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABAAAAAFAAAAAAAAAA==",
+              "DocumentIndex": 3,
+              "Title": "MILP.cs",
+              "DocumentMoniker": "C:\\Users\\Roman\\Documents\\GitHub\\ParallelTest\\ParallelTest\\Main\\MILP.cs",
+              "RelativeDocumentMoniker": "ParallelTest\\Main\\MILP.cs",
+              "ToolTip": "C:\\Users\\Roman\\Documents\\GitHub\\ParallelTest\\ParallelTest\\Main\\MILP.cs",
+              "RelativeToolTip": "ParallelTest\\Main\\MILP.cs",
+              "ViewState": "AgIAAA4AAAAAAAAAAAAQwA8AAAAdAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-12-09T10:05:16.706Z",
+              "WhenOpened": "2026-09-08T10:45:01.738Z",
+              "IsPinned": true,
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "EnergyStream.cs",
+              "DocumentMoniker": "C:\\Users\\Roman\\Documents\\GitHub\\ParallelTest\\ParallelTest\\Main\\EnergyStream.cs",
+              "RelativeDocumentMoniker": "ParallelTest\\Main\\EnergyStream.cs",
+              "ToolTip": "C:\\Users\\Roman\\Documents\\GitHub\\ParallelTest\\ParallelTest\\Main\\EnergyStream.cs",
+              "RelativeToolTip": "ParallelTest\\Main\\EnergyStream.cs",
+              "ViewState": "AgIAAC8AAAAAAAAAAAAIwDYAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-08T13:06:49.34Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "EBST.cs",
+              "DocumentMoniker": "C:\\Users\\Roman\\Documents\\GitHub\\ParallelTest\\ParallelTest\\Main\\EBST.cs",
+              "RelativeDocumentMoniker": "ParallelTest\\Main\\EBST.cs",
+              "ToolTip": "C:\\Users\\Roman\\Documents\\GitHub\\ParallelTest\\ParallelTest\\Main\\EBST.cs",
+              "RelativeToolTip": "ParallelTest\\Main\\EBST.cs",
+              "ViewState": "AgIAABcAAAAAAAAAAAAewDIAAAB6AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-08T12:50:19.706Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "FullEnergyStream.cs",
+              "DocumentMoniker": "C:\\Users\\Roman\\Documents\\GitHub\\ParallelTest\\ParallelTest\\Main\\FullEnergyStream.cs",
+              "RelativeDocumentMoniker": "ParallelTest\\Main\\FullEnergyStream.cs",
+              "ToolTip": "C:\\Users\\Roman\\Documents\\GitHub\\ParallelTest\\ParallelTest\\Main\\FullEnergyStream.cs",
+              "RelativeToolTip": "ParallelTest\\Main\\FullEnergyStream.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABQAAAAoAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-08T12:46:44.853Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "ConfigEBST.cs",
+              "DocumentMoniker": "C:\\Users\\Roman\\Documents\\GitHub\\ParallelTest\\ParallelTest\\Main\\ConfigEBST.cs",
+              "RelativeDocumentMoniker": "ParallelTest\\Main\\ConfigEBST.cs",
+              "ToolTip": "C:\\Users\\Roman\\Documents\\GitHub\\ParallelTest\\ParallelTest\\Main\\ConfigEBST.cs",
+              "RelativeToolTip": "ParallelTest\\Main\\ConfigEBST.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABMAAAAfAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-08T12:45:40.51Z",
               "EditorCaption": ""
             }
           ]

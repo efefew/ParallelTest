@@ -1,4 +1,7 @@
-﻿public class Utility
+﻿/// <summary>
+/// Аппарат
+/// </summary>
+public class Utility
 {
     /// <summary>
     /// Тепловая нагрузка

@@ -26,10 +26,8 @@ internal static class Program
         for (ulong idTask = 0; idTask < COUNT_TASKS; idTask++)
         {
             tasks[idTask] = new Task(FindSubPrimeCount(MIN, SUB_RANGE, array, idTask, func));
-        }
-
-        for (ulong idTask = 0; idTask < COUNT_TASKS; idTask++)
             tasks[idTask].Start();
+        }
 
         for (ulong idTask = 0; idTask < COUNT_TASKS; idTask++)
             tasks[idTask].Wait();

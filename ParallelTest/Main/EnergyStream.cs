@@ -1,43 +1,56 @@
 ﻿public class EnergyStream
 {
+    /// <summary>
+    /// Имя потока
+    /// </summary>
     public string Name;
-    public float Tin, Tout;
-    public float W;
+    /// <summary>
+    /// Температура входная
+    /// </summary>
+    public double TimperatureIn;
+    /// <summary>
+    /// Температура выходная
+    /// </summary>
+    public double TemperatureOut;
+    /// <summary>
+    /// Водяной эквивалент
+    /// </summary>
+    public double WaterEquivalent;
 
     public EnergyStream()
     {
         Name = string.Empty;
-        W = 0;
-        Tin = 0;
-        Tout = 0;
+        WaterEquivalent = 0;
+        TimperatureIn = 0;
+        TemperatureOut = 0;
     }
 
-    public EnergyStream(float tin, float tout)
+    public EnergyStream(double tin, double tout)
     {
         Name = string.Empty;
-        Tin = tin;
-        Tout = tout;
+        TimperatureIn = tin;
+        TemperatureOut = tout;
     }
 
-    public EnergyStream(string name, float w, float tin, float tout)
+    public EnergyStream(string name, double w, double tin, double tout)
     {
         Name = name;
-        W = w;
-        Tin = tin;
-        Tout = tout;
+        WaterEquivalent = w;
+        TimperatureIn = tin;
+        TemperatureOut = tout;
     }
 
-    public void AddT(float t)
+    public void ShiftTimperature(double t)
     {
-        Tin += t;
-        Tout += t;
+        TimperatureIn += t;
+        TemperatureOut += t;
     }
 
     public void Copy(EnergyStream stream)
     {
         Name = stream.Name;
-        W = stream.W;
-        Tin = stream.Tin;
-        Tout = stream.Tout;
+        WaterEquivalent = stream.WaterEquivalent;
+        TimperatureIn = stream.TimperatureIn;
+        TemperatureOut = stream.TemperatureOut;
     }
 }

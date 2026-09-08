@@ -9,21 +9,21 @@
     {
         if (!HotStreams.ContainsKey(idStream))
             return 0;
-        double wStreams = HotStreams.Sum(stream => stream.Value.W);
-        return HotStreams[idStream].W / wStreams;
+        double wStreams = HotStreams.Sum(stream => stream.Value.WaterEquivalent);
+        return HotStreams[idStream].WaterEquivalent / wStreams;
     }
     public double GetBetaHot(int idStream)
     {
         if (!ColdStreams.ContainsKey(idStream))
             return 0;
-        double wInInterval = ColdStreams.Sum(stream => stream.Value.W);
-        return ColdStreams[idStream].W / wInInterval;
+        double wInInterval = ColdStreams.Sum(stream => stream.Value.WaterEquivalent);
+        return ColdStreams[idStream].WaterEquivalent / wInInterval;
     }
     public double GetAlphaHot(int idStream)
     {
         if (!HotStreams.ContainsKey(idStream))
             return 0;
-        double deltaTemperatureInStream = HotStreams[idStream].Tin - HotStreams[idStream].Tout;
+        double deltaTemperatureInStream = HotStreams[idStream].TimperatureIn - HotStreams[idStream].TemperatureOut;
         double deltaTemperatureInInterval = TemperatureHotIn - TemperatureHotOut;
         return deltaTemperatureInInterval / deltaTemperatureInStream;
     }
@@ -31,7 +31,7 @@
     {
         if (!ColdStreams.ContainsKey(idStream))
             return 0;
-        double deltaTemperatureInStream = ColdStreams[idStream].Tout - ColdStreams[idStream].Tin;
+        double deltaTemperatureInStream = ColdStreams[idStream].TemperatureOut - ColdStreams[idStream].TimperatureIn;
         double deltaTemperatureInInterval = TemperatureColdOut - TemperatureColdIn;
         return deltaTemperatureInInterval / deltaTemperatureInStream;
     }
