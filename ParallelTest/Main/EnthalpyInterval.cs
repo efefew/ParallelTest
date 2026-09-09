@@ -23,7 +23,7 @@
     {
         if (!HotStreams.ContainsKey(idStream))
             return 0;
-        double deltaTemperatureInStream = HotStreams[idStream].TimperatureIn - HotStreams[idStream].TemperatureOut;
+        double deltaTemperatureInStream = HotStreams[idStream].TemperatureIn - HotStreams[idStream].TemperatureOut;
         double deltaTemperatureInInterval = TemperatureHotIn - TemperatureHotOut;
         return deltaTemperatureInInterval / deltaTemperatureInStream;
     }
@@ -31,7 +31,7 @@
     {
         if (!ColdStreams.ContainsKey(idStream))
             return 0;
-        double deltaTemperatureInStream = ColdStreams[idStream].TemperatureOut - ColdStreams[idStream].TimperatureIn;
+        double deltaTemperatureInStream = ColdStreams[idStream].TemperatureOut - ColdStreams[idStream].TemperatureIn;
         double deltaTemperatureInInterval = TemperatureColdOut - TemperatureColdIn;
         return deltaTemperatureInInterval / deltaTemperatureInStream;
     }

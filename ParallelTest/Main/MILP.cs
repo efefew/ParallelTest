@@ -3,7 +3,7 @@
     //public int CountHotStreams, CountColdStreams, CountHotStage, CountColdStage, CountHotDivision, CountColdDivision;
     public List<FullEnergyStream> HotStreams = new(), ColdStreams = new();
     public List<ExternalUtility> HotExternalUtilities = new(), ColdExternalUtilities = new();
-    public ConfigEBST configEBST;
+    public ConfigEBST ConfigEbst;
     /// <summary>
     /// Точность декомпозиции
     /// </summary>
@@ -17,7 +17,7 @@
     /// </summary>
     public const double TOLERANCE_CONSTR = 0.0001;
 }
-internal class MILP
+internal class Milp
 {
     public void Run(DataMILP data)
     {
@@ -41,7 +41,7 @@ internal class MILP
     {
         for (int idCold = 0; idCold < data.ColdStreams.Count; idCold++)
         {
-
+            
         }
     }
 }
