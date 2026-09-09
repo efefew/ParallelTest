@@ -1,4 +1,6 @@
-﻿public class FullEnergyStream : EnergyStream
+﻿using Accord.Math;
+
+public class FullEnergyStream : EnergyStream
 {
     /// <summary>
     /// Стадии
@@ -13,7 +15,6 @@
     /// Потоки делелния
     /// </summary>
     public Division[] Divisions;
-    private double[,] _alpha;
 
     public FullEnergyStream(string name, double w, double tin, double tout, double heatCapacity, double[] stages, double[] divisions) : base(name, w, tin, tout)
     {
@@ -28,7 +29,6 @@
 
     private void Build(double[] stages, double[] divisions)
     {
-        SetAlpha(stages, divisions);
         BuildStages(stages);
         BuildDivisions(divisions);
     }
@@ -38,7 +38,7 @@
         Divisions = new Division[divisions.Length];
         for (int idDivision = 1; idDivision < Divisions.Length; idDivision++)
         {
-            Divisions[idDivision] = new Division(divisions[idDivision]);
+            Divisions[idDivision] = new Division(divisions[idDivision], Stages, this);
         }
     }
 
@@ -46,46 +46,22 @@
     {
         {
             Stages = new Stage[stages.Length];
-            Stages[0] = new Stage(
-                stages[0], 
-                TemperatureIn,
-                TemperatureIn + Heat * stages[0] / HeatCapacity,
-                this);
+            double shiftTemperature = Heat * stages[0] / HeatCapacity;
+            if (TemperatureIn > TemperatureOut) shiftTemperature = -shiftTemperature;
+            Stages[0] = new Stage(stages[0], TemperatureIn, TemperatureIn + shiftTemperature);
             for (int idStage = 0; idStage < Stages.Length; idStage++)
             {
-                Stages[idStage] = new Stage(stages[idStage], 
-                    GetDivT(idStage - 1),
-                    GetDivT(idStage),
-                    this);
+                double tin = GetDivT(idStage - 1, stages[idStage - 1], Stages[idStage - 1].TemperatureIn);
+                Stages[idStage] = new Stage(stages[idStage], tin, GetDivT(idStage, stages[idStage], tin));
             }
         }
         return;
 
-        double GetDivT(int idStage)
+        double GetDivT(int idStage, double beta, double tin)
         {
-            //TODO  Stages[idStage] заменить
-
-            double shiftTemperature = Heat * Stages[idStage].Beta / HeatCapacity;
+            double shiftTemperature = Heat * beta / HeatCapacity;
             if(TemperatureIn > TemperatureOut) shiftTemperature = -shiftTemperature;
-            return Stages[idStage].TemperatureIn + shiftTemperature;
-        }
-    }
-
-    public double GetAlpha(int idStage, int idDivision)
-    {
-        return _alpha[idStage, idDivision];
-    }
-    public void SetAlpha(int idStage, int idDivision, double value)
-    {
-        _alpha[idStage, idDivision] = value;
-    }
-    private void SetAlpha(double[] stages, double[] divisions)
-    {
-        _alpha = new double[stages.Length, divisions.Length];
-        for (int idStage = 0; idStage < stages.Length; idStage++)
-        {
-            for (int idDivision = 0; idDivision < divisions.Length; idDivision++)
-                _alpha[idStage, idDivision] = divisions[idDivision];
+            return tin + shiftTemperature;
         }
     }
 
@@ -107,12 +83,61 @@
 public class Division
 {
     public double Gamma;
-    public Division(double gamma)
+    public StageInDivision[] Stages;
+    public Division(double gamma, Stage[] stages, FullEnergyStream stream)
     {
         Gamma = gamma;
+        Stages = new StageInDivision[stages.Length];
+        for(int idStage = 0; idStage < stages.Length; idStage++)
+        {
+            Stages[idStage] = new(stages[idStage], this, stream);
+        }
     }
 }
+public class StageInDivision
+{
+    /// <summary>
+    /// Теплоёмкость
+    /// </summary>
+    public double HeatCapacity;
+    /// <summary>
+    /// Водяной эквивалент
+    /// </summary>
+    public double WaterEquivalent;
+    /// <summary>
+    /// Температура входная
+    /// </summary>
+    public double TemperatureIn;
+    /// <summary>
+    /// Температура выходная
+    /// </summary>
+    public double TemperatureOut;
+    public double Heat;
+    public Stage Stage { get; private set; }
+    public Division Division { get; private set; }
+    public double Alpha;
 
+    public StageInDivision(Stage stage, Division division, FullEnergyStream stream)
+    {
+        Stage = stage;
+        Division = division;
+        Alpha = division.Gamma;
+
+        Heat = stream.Heat * stage.Beta * Alpha;
+        HeatCapacity = stream.HeatCapacity * Alpha;
+        WaterEquivalent = stream.WaterEquivalent;
+        TemperatureIn = stage.TemperatureIn;
+        if (HeatCapacity == 0)
+            TemperatureOut = TemperatureIn;
+        else
+        {
+            double shiftTemperature = Heat / HeatCapacity;
+            if (stream.TemperatureIn > stream.TemperatureOut) shiftTemperature = -shiftTemperature;
+            TemperatureOut = TemperatureIn + shiftTemperature;
+        }
+
+    }
+}
 public class Stage
 {
     public double Beta;
@@ -124,24 +149,10 @@ public class Stage
     /// Температура выходная
     /// </summary>
     public double TemperatureOut;
-    /// <summary>
-    /// Теплоёмкость
-    /// </summary>
-    public double HeatCapacity;
-    /// <summary>
-    /// Водяной эквивалент
-    /// </summary>
-    public double WaterEquivalent;
-    public double Heat;
-    public Stage(double beta, double tin, double tout, FullEnergyStream energyStream)
+    public Stage(double beta, double tin, double tout)
     {
         Beta = beta;
         TemperatureIn = tin;
         TemperatureOut = tout;
-        //TODO держать в цикле делений
-        Heat = energyStream.Heat * Beta/* * energyStream.GetAlpha()*/;
-        HeatCapacity = energyStream.HeatCapacity;
-        WaterEquivalent = energyStream.WaterEquivalent;
-        
     }
 }
