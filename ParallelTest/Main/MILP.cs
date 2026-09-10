@@ -178,10 +178,25 @@ internal class Milp
         else
         {
             double heatLoadRecuperator = Math.Min(hotPoint.HeatLoad, coldPoint.HeatLoad); // выбор минимального количества теплоты, затраченного на охлаждение/нагревание
-            double intermediateColdTemperature = 0; // нахождение температуры промежуточного холодного потока
-            double intermediateHotTemperature = 0; // нахождение температуры промежуточного горячего потока
+            double intermediateColdTemperature = // нахождение температуры промежуточного холодного потока
+                coldPoint.HeatCapacity != 0 ? 
+                coldPoint.TemperatureIn : 
+                coldPoint.TemperatureIn + (heatLoadRecuperator / coldPoint.HeatCapacity);
+            double intermediateHotTemperature =  // нахождение температуры промежуточного горячего потока
+                hotPoint.HeatCapacity != 0 ?
+                hotPoint.TemperatureIn :
+                hotPoint.TemperatureIn - (heatLoadRecuperator / hotPoint.HeatCapacity);
+
             double deltaT1 = intermediateHotTemperature - coldPoint.TemperatureIn; // разность промежуточного горячего и входного холодного
             double deltaT2 = hotPoint.TemperatureIn - intermediateColdTemperature; // разность промежуточного горячего и входного холодного
+            if(deltaT1 < data.Ebst.MinDeltaT || deltaT2 < data.Ebst.MinDeltaT)
+            {
+                // ЭБСТ2 Полноструктурный блок
+                if(deltaT2 > deltaT1) // ЭБСТ2 Случай 1
+                {
+                    intermediateHotTemperature = data.Ebst.MinDeltaT + coldPoint.TemperatureIn; // нахождение температуры промежуточного горячего потока
+                }
+            }
         }
         return 0;
     }

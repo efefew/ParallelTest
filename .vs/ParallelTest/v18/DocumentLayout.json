@@ -11,12 +11,12 @@
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:INPUT.m||{3B902123-F8A7-4915-9F01-361F908088D0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{4B2B430D-5090-4A57-A2F0-E3C389D45C63}|ParallelTest\\ParallelTest.csproj|c:\\users\\roman\\documents\\github\\paralleltest\\paralleltest\\main\\ebst.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4B2B430D-5090-4A57-A2F0-E3C389D45C63}|ParallelTest\\ParallelTest.csproj|solutionrelative:paralleltest\\main\\ebst.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Roman\\Documents\\GitHub\\ParallelTest\\System_param.m||{3B902123-F8A7-4915-9F01-361F908088D0}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:System_param.m||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4B2B430D-5090-4A57-A2F0-E3C389D45C63}|ParallelTest\\ParallelTest.csproj|c:\\users\\roman\\documents\\github\\paralleltest\\paralleltest\\main\\ebst.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4B2B430D-5090-4A57-A2F0-E3C389D45C63}|ParallelTest\\ParallelTest.csproj|solutionrelative:paralleltest\\main\\ebst.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -36,7 +36,7 @@
               "RelativeDocumentMoniker": "ParallelTest\\Main\\MILP.cs",
               "ToolTip": "C:\\Users\\Roman\\Documents\\GitHub\\ParallelTest\\ParallelTest\\Main\\MILP.cs",
               "RelativeToolTip": "ParallelTest\\Main\\MILP.cs",
-              "ViewState": "AgIAAIwAAAAAAAAAAAAgwLcAAABRAAAAAAAAAA==",
+              "ViewState": "AgIAAJ0AAAAAAAAAAAAYwMQAAACYAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-09-08T10:45:01.738Z",
               "IsPinned": true,
@@ -44,7 +44,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 3,
               "Title": "EBST.cs",
               "DocumentMoniker": "C:\\Users\\Roman\\Documents\\GitHub\\ParallelTest\\ParallelTest\\Main\\EBST.cs",
               "RelativeDocumentMoniker": "ParallelTest\\Main\\EBST.cs",
@@ -52,8 +52,7 @@
               "RelativeToolTip": "ParallelTest\\Main\\EBST.cs",
               "ViewState": "AgIAAA0AAAAAAAAAAAAcwFIAAABPAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-08T12:50:19.706Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-09-08T12:50:19.706Z"
             }
           ]
         },
@@ -69,14 +68,14 @@
               "RelativeDocumentMoniker": "INPUT.m",
               "ToolTip": "C:\\Users\\Roman\\Documents\\GitHub\\ParallelTest\\INPUT.m",
               "RelativeToolTip": "INPUT.m",
-              "ViewState": "AgIAAJMAAAAAAAAAAAAowKIAAAAbAAAAAAAAAA==",
+              "ViewState": "AgIAAJ8AAAAAAAAAAAAowK4AAABpAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
               "WhenOpened": "2026-09-09T14:51:54.361Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 2,
               "Title": "System_param.m",
               "DocumentMoniker": "C:\\Users\\Roman\\Documents\\GitHub\\ParallelTest\\System_param.m",
               "RelativeDocumentMoniker": "System_param.m",
