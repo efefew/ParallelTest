@@ -112,7 +112,10 @@ public class StageInDivision
     /// Температура выходная
     /// </summary>
     public double TemperatureOut;
-    public double Heat;
+    /// <summary>
+    /// Тепловая нагрузка
+    /// </summary>
+    public double HeatLoad;
     public Stage Stage { get; private set; }
     public Division Division { get; private set; }
     public double Alpha;
@@ -123,7 +126,7 @@ public class StageInDivision
         Division = division;
         Alpha = division.Gamma;
 
-        Heat = stream.Heat * stage.Beta * Alpha;
+        HeatLoad = stream.Heat * stage.Beta * Alpha;
         HeatCapacity = stream.HeatCapacity * Alpha;
         WaterEquivalent = stream.WaterEquivalent;
         TemperatureIn = stage.TemperatureIn;
@@ -131,7 +134,7 @@ public class StageInDivision
             TemperatureOut = TemperatureIn;
         else
         {
-            double shiftTemperature = Heat / HeatCapacity;
+            double shiftTemperature = HeatLoad / HeatCapacity;
             if (stream.TemperatureIn > stream.TemperatureOut) shiftTemperature = -shiftTemperature;
             TemperatureOut = TemperatureIn + shiftTemperature;
         }

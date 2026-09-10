@@ -1,10 +1,11 @@
-﻿public class EnthalpyInterval
+﻿public class EnthalpyInterval(double tcin, double tcout, double thin, double thout)
 {
     public double EnthalpyIn, EnthalpyOut;
-    public double TemperatureColdIn, TemperatureColdOut;
-    public double TemperatureHotIn, TemperatureHotOut;
+    public double TemperatureColdIn = tcin, TemperatureColdOut = tcout;
+    public double TemperatureHotIn = thin, TemperatureHotOut = thout;
 
     public Dictionary<int, EnergyStream> HotStreams, ColdStreams;
+
     public double GetBetaCold(int idStream)
     {
         if (!HotStreams.ContainsKey(idStream))

@@ -1,47 +1,203 @@
 ﻿public class DataMILP
 {
-    //public int CountHotStreams, CountColdStreams, CountHotStage, CountColdStage, CountHotDivision, CountColdDivision;
     public List<FullEnergyStream> HotStreams = new(), ColdStreams = new();
     public List<ExternalUtility> HotExternalUtilities = new(), ColdExternalUtilities = new();
     public ConfigEBST Ebst;
-    /// <summary>
-    /// Точность декомпозиции
-    /// </summary>
-    public const double TOLERANCE_DECOMPOSITION = 0.0000001;
-    /// <summary>
-    /// Точность процедуры агрегирования
-    /// </summary>
-    public const double TOLERANCE_AGGREGATION_PROCEDURE = 0.0000001;
-    /// <summary>
-    /// Точность конструкции?
-    /// </summary>
-    public const double TOLERANCE_CONSTR = 0.0001;
+
+    public int GetHotLength(int id = 0)
+    {
+        return HotStreams.Count * HotStreams[id].Stages.Length * HotStreams[id].Divisions.Length;
+    }
+    public int GetColdLength(int id = 0)
+    {
+        return ColdStreams.Count * ColdStreams[id].Stages.Length * ColdStreams[id].Divisions.Length;
+    }
 }
 internal class Milp
 {
+    //public void Run(DataMILP data)
+    //{
+    //    // 1. Генерируем плоский список индексов (как в Варианте 1)
+    //    var combinations = (
+    //        from hStreamId in Enumerable.Range(0, data.HotStreams.Count)
+    //        from hStageId in Enumerable.Range(0, data.HotStreams[hStreamId].Stages.Length)
+    //        from hDivId in Enumerable.Range(0, data.HotStreams[hStreamId].Divisions.Length)
+    //        from cStreamId in Enumerable.Range(0, data.ColdStreams.Count)
+    //        from cStageId in Enumerable.Range(0, data.ColdStreams[cStreamId].Stages.Length)
+    //        from cDivId in Enumerable.Range(0, data.ColdStreams[cStreamId].Divisions.Length)
+    //        select (hStreamId, hStageId, hDivId, cStreamId, cStageId, cDivId)
+    //    ).ToList();
+
+    //    double totalCost = 0;
+
+    //    // 2. Выполняем расчеты параллельно на всех ядрах процессора
+    //    Parallel.ForEach(
+    //        combinations,
+    //        () => 0.0, // Инициализация локальной суммы для каждого потока CPU
+    //        (c, state, localSum) =>
+    //        {
+    //            // ВАЖНО: SolveMILP должна возвращать double (cost), а не использовать ref
+    //            double cost = SolveMILP(data, c.hStreamId, c.hStageId, c.hDivId, c.cStreamId, c.cStageId, c.cDivId);
+    //            return localSum + cost;
+    //        },
+    //        localSum => { lock (data) totalCost += localSum; } // Сведение результатов
+    //    );
+    //}
+
+    //// 1. Метод SolveMILP теперь возвращает именованный кортеж
+    //public (double Cost, bool IsFeasible, int Iterations) SolveMILP(DataMILP data, int hStr, int hStg, int hDiv, int cStr, int cStg, int cDiv)
+    //{
+    //    // ... логика расчета ...
+    //    return (calculatedCost, hasSolution, totalIterations);
+    //}
+
+    //public void Run(DataMILP data)
+    //{
+    //    var combinations = /* ... генерация списка из прошлых ответов ... */;
+
+    //    // 2. Параллельный расчет
+    //    var results = combinations
+    //        .AsParallel()
+    //        .WithDegreeOfParallelism(Environment.ProcessorCount)
+    //        .Select(c => SolveMILP(data, c.hStreamId, c.hStageId, c.hDivId, c.cStreamId, c.cStageId, c.cDivId))
+    //        .ToList(); // Собираем все кортежи в один плоский список
+
+    //    // 3. Агрегация результатов (уже в одном потоке, безопасно)
+    //    double totalCost = results.Sum(r => r.Cost);
+    //    int totalFeasible = results.Count(r => r.IsFeasible);
+    //    long totalIterations = results.Sum(r => (long)r.Iterations);
+    //}
+
+    //или
+
+    //public void Run(DataMILP data)
+    //{
+    //    var combinations = /* ... генерация списка ... */;
+
+    //    double totalCost = 0;
+    //    int successfulSolves = 0;
+    //    object lockObject = new object();
+
+    //    Parallel.ForEach(
+    //        combinations,
+    //        // Инициализируем локальный кортеж-аккумулятор для каждого ядра (Cost, Count)
+    //        () => (LocalCost: 0.0, LocalCount: 0),
+
+    //        (c, state, localSum) =>
+    //        {
+    //            // Получаем кортеж из метода
+    //            var result = SolveMILP(data, c.hStreamId, c.hStageId, c.hDivId, c.cStreamId, c.cStageId, c.cDivId);
+
+    //            // Суммируем внутри локального потока
+    //            if (result.IsFeasible)
+    //            {
+    //                localSum.LocalCost += result.Cost;
+    //                localSum.LocalCount += 1;
+    //            }
+    //            return localSum;
+    //        },
+
+    //        // Сводим локальные кортежи от всех ядер в общие переменные
+    //        localSum =>
+    //        {
+    //            lock (lockObject)
+    //            {
+    //                totalCost += localSum.LocalCost;
+    //                successfulSolves += localSum.LocalCount;
+    //            }
+    //        }
+    //    );
+    //}
+
     public void Run(DataMILP data)
     {
         // ЭТАП 2 РЕШЕНИЕ ЗАДАЧИ MILP
         double summCost = 0;
+
         // ЭТАП 1 НАХОЖДЕНИЕ ОПТИМАЛЬНЫХ ОЦЕНОК НА ТЕПЛООБМЕН ПАРЫ ПОТОКОВ
-        for (int idHotStream = 0; idHotStream < data.HotStreams.Count; idHotStream++)
-            for (int idHotStage = 0; idHotStage < data.HotStreams[idHotStream].Stages.Length; idHotStage++)
-                for (int idHotDivision = 0; idHotDivision < data.HotStreams[idHotStream].Divisions.Length; idHotDivision++)
-                    for (int idColdStream = 0; idColdStream < data.HotStreams.Count; idColdStream++)
-                        for (int idColdStage = 0; idColdStage < data.HotStreams[idColdStream].Stages.Length; idColdStage++)
-                            for (int idColdDivision = 0; idColdDivision < data.HotStreams[idColdStream].Divisions.Length; idColdDivision++)
-                            {
-                                SolveMILP(data, idHotStream, idHotStage, idHotDivision, idColdStream, idColdStage, idColdDivision, ref summCost);
-                            }
-    }
+        var combinations =
+            from hStreamId in Enumerable.Range(0, data.HotStreams.Count)
+            from hStageId in Enumerable.Range(0, data.HotStreams[hStreamId].Stages.Length)
+            from hDivId in Enumerable.Range(0, data.HotStreams[hStreamId].Divisions.Length)
 
-    private void SolveMILP(DataMILP data, int idHotStream, int idHotStage, int idHotDivision, int idColdStream, int idColdStage, int idColdDivision, ref double summCost)
-    {
-        StageInDivision hotPoint = data.HotStreams[idHotStream].Divisions[idHotDivision].Stages[idHotStage];
-        StageInDivision coldPoint = data.ColdStreams[idColdStream].Divisions[idColdDivision].Stages[idColdStage];
-        if (hotPoint.TemperatureIn - coldPoint.TemperatureIn < data.Ebst.MinDeltaT)
+            from cStreamId in Enumerable.Range(0, data.ColdStreams.Count)
+            from cStageId in Enumerable.Range(0, data.ColdStreams[cStreamId].Stages.Length)
+            from cDivId in Enumerable.Range(0, data.ColdStreams[cStreamId].Divisions.Length)
+
+            select new Point(hStreamId, hStageId, hDivId, cStreamId, cStageId, cDivId);
+
+        foreach (var c in combinations)
         {
-
+            summCost += SolveMILP(data, c);
         }
     }
+
+    public void RunParallel(DataMILP data)
+    {
+        double totalCost = GetTotalCost(data);
+    }
+
+    private double GetTotalCost(DataMILP data)
+    {
+        // Генерируем комбинации и сразу запускаем их параллельную обработку
+        return (
+            from hStreamId in Enumerable.Range(0, data.HotStreams.Count)
+            from hStageId in Enumerable.Range(0, data.HotStreams[hStreamId].Stages.Length)
+            from hDivId in Enumerable.Range(0, data.HotStreams[hStreamId].Divisions.Length)
+            from cStreamId in Enumerable.Range(0, data.ColdStreams.Count)
+            from cStageId in Enumerable.Range(0, data.ColdStreams[cStreamId].Stages.Length)
+            from cDivId in Enumerable.Range(0, data.ColdStreams[cStreamId].Divisions.Length)
+            select new Point(hStreamId, hStageId, hDivId, cStreamId, cStageId, cDivId)
+        )
+        .AsParallel() // Переводим LINQ в параллельный режим
+        .WithDegreeOfParallelism(Environment.ProcessorCount) // Использовать все логические ядра
+        .Select(point => SolveMILP(data, point)) // Передаем структуру в метод
+        .Sum(); // Потокобезопасное сложение результатов
+    }
+
+    private double SolveMILP(DataMILP data, Point p)
+    {
+        StageInDivision hotPoint = data.HotStreams[p.IdHotStream].Divisions[p.IdHotDivision].Stages[p.IdHotStage];
+        StageInDivision coldPoint = data.ColdStreams[p.IdColdStream].Divisions[p.IdColdDivision].Stages[p.IdColdStage];
+
+        int hotCount = data.GetHotLength();
+        int coldCount = data.GetColdLength();
+        EBST[,] ebsts = new EBST[hotCount, coldCount];
+
+        GetIdPoints(data, p, out int idHot, out int idCold);
+
+        const int ID_COOLER = 0;
+        const int ID_HEATER = 0;
+
+        if (hotPoint.TemperatureIn - coldPoint.TemperatureIn < data.Ebst.MinDeltaT)
+        {
+            ebsts[idHot, idCold] = new(data.Ebst);
+            ebsts[idHot, idCold].CalculateCooler(data.ColdExternalUtilities[ID_COOLER], hotPoint);
+            ebsts[idHot, idCold].CalculateHeater(data.HotExternalUtilities[ID_HEATER], coldPoint);
+        }
+        else
+        {
+            double heatLoadRecuperator = Math.Min(hotPoint.HeatLoad, coldPoint.HeatLoad); // выбор минимального количества теплоты, затраченного на охлаждение/нагревание
+            double intermediateColdTemperature = 0; // нахождение температуры промежуточного холодного потока
+            double intermediateHotTemperature = 0; // нахождение температуры промежуточного горячего потока
+            double deltaT1 = intermediateHotTemperature - coldPoint.TemperatureIn; // разность промежуточного горячего и входного холодного
+            double deltaT2 = hotPoint.TemperatureIn - intermediateColdTemperature; // разность промежуточного горячего и входного холодного
+        }
+        return 0;
+    }
+    private static void GetIdPoints(DataMILP data, Point p, out int idHot, out int idCold)
+    {
+        int CountHotDivisions = data.HotStreams[p.IdHotStream].Divisions.Length; // Количество делений (горячие)
+        int CountHotStages = data.HotStreams[p.IdHotStream].Stages.Length; // Количество ступеней (горячие)
+
+        int CountColdDivisions = data.ColdStreams[p.IdColdStream].Divisions.Length; // Количество делений (холодные)
+        int CountColdStages = data.ColdStreams[p.IdColdStream].Stages.Length; // Количество ступеней (холодные)
+
+        idHot = (p.IdHotStream * CountHotDivisions * CountHotStages) + (p.IdHotDivision * CountHotStages) + p.IdHotStage;
+        idCold = (p.IdColdStream * CountColdDivisions * CountColdStages) + (p.IdColdDivision * CountColdStages) + p.IdColdStage;
+    }
 }
+public readonly record struct Point(
+    int IdHotStream, int IdHotStage, int IdHotDivision,
+    int IdColdStream, int IdColdStage, int IdColdDivision
+);

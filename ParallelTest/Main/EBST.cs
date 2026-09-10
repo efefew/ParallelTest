@@ -1,12 +1,20 @@
-﻿public class EBST
+﻿using Accord;
+
+public class EBST(ConfigEBST config)
 {
-    private ConfigEBST _config;
-    public Utility Heater { get; private set; }
-    public Utility Cooler { get; private set; }
-    public Utility Recuperator { get; private set; }
-    public EBST(ConfigEBST config)
+    private ConfigEBST _config = config;
+    public Utility? Heater { get; private set; }
+    public Utility? Cooler { get; private set; }
+    public Utility? Recuperator { get; private set; }
+    public TypeEBST GetTypeEBST()
     {
-        _config = config;
+        if (Recuperator == null) return TypeEBST.CoolerAndHeater;
+
+        if (Heater != null && Cooler != null) return TypeEBST.All;
+        if (Heater != null) return TypeEBST.RecuperatorAndHeater;
+        if (Cooler != null) return TypeEBST.RecuperatorAndCooler;
+
+        return TypeEBST.Recuperator;
     }
     /// <summary>
     /// Среднелогарифмический температурный напор
@@ -22,7 +30,7 @@
 
     private const double TOLERANCE = 1e-5;
 
-    public Utility CalculateRecuperator(EnthalpyInterval interval, double costRecuperator, double cost, double heatLoad, double heatTransferCoeff, double heatTransferExternalCoeff)
+    public Utility CalculateRecuperator(EnthalpyInterval interval, double cost, double heatLoad, double heatTransferCoeff, double heatTransferExternalCoeff)
     {
         if (Recuperator == null) Recuperator = new Utility();
         Recuperator.HeatLoad = heatLoad;
@@ -46,7 +54,7 @@
         end*/
 
         Recuperator.OperatingCost = Recuperator.HeatLoad * cost;
-        Recuperator.CapitalCost = (costRecuperator * Math.Pow(Recuperator.Area, _config.CGamma)) / _config.Years;
+        Recuperator.CapitalCost = (config.CostCoeff * Math.Pow(Recuperator.Area, _config.CGamma)) / _config.Years;
         Recuperator.SummCost = Recuperator.OperatingCost + Recuperator.CapitalCost;
         Recuperator.SummCost=(Recuperator.HeatLoad != 0) ? (Recuperator.SummCost / Math.Pow(Recuperator.HeatLoad, _config.CostExponent)) : 0.0;
         return Recuperator;
@@ -55,46 +63,36 @@
     /// <summary>
     /// Рассчитать нагреватель
     /// </summary>
-    /// <param name="interval">Интервал температур</param>
-    /// <param name="costRecuperator">Стоимость рекуператора</param>
-    /// <param name="costHeater">Стоимость нагревателя</param>
-    /// <param name="heatLoad">Тепловая нагрузка</param>
-    /// <param name="heatTransferCoeff">Коэффициент теплопередачи горячей утилиты</param>
-    /// <param name="heatTransferExternalCoeff">Коэффициент теплопередачи внешней горячей утилиты</param>
-    /// <returns>Cуммарные затраты</returns>
-    public Utility CalculateHeater(EnthalpyInterval interval, double costRecuperator, double costHeater, double heatLoad, double heatTransferCoeff, double heatTransferExternalCoeff)
+    /// <returns>Нагреватель</returns>
+    public Utility CalculateHeater(ExternalUtility heaterData, StageInDivision coldPoint)
     {
         if (Heater == null) Heater = new Utility();
-        Heater.HeatLoad = heatLoad;
-        return CalculateUtility(interval, costRecuperator, costHeater, Heater, heatTransferCoeff, heatTransferExternalCoeff);
+        Heater.HeatLoad = coldPoint.HeatLoad;
+        EnthalpyInterval interval = new EnthalpyInterval(coldPoint.TemperatureIn, coldPoint.TemperatureOut, heaterData.TimperatureIn, heaterData.TemperatureOut);
+        Heater = CalculateUtility(interval, heaterData.Cost, Heater, coldPoint.WaterEquivalent, heaterData.HeatTransferCoefficient);
+        return Heater;
     }
     /// <summary>
     /// Рассчитать холодильник
     /// </summary>
-    /// <param name="interval">Интервал температур</param>
-    /// <param name="costRecuperator">Стоимость рекуператора</param>
-    /// <param name="costCooler">Стоимость холодильника</param>
-    /// <param name="heatLoad">Тепловая нагрузка</param>
-    /// <param name="heatTransferCoeff">Коэффициент теплопередачи холодной утилиты</param>
-    /// <param name="heatTransferExternalCoeff">Коэффициент теплопередачи внешней холодной утилиты</param>
-    /// <returns>Cуммарные затраты</returns>
-    public Utility CalculateCooler(EnthalpyInterval interval, double costRecuperator, double costCooler, double heatLoad, double heatTransferCoeff, double heatTransferExternalCoeff)
+    /// <returns>Холодильник</returns>
+    public Utility CalculateCooler(ExternalUtility coolerData, StageInDivision hotPoint)
     {
         if (Cooler == null) Cooler = new Utility();
-        Cooler.HeatLoad = heatLoad;
-        return CalculateUtility(interval, costRecuperator, costCooler, Cooler, heatTransferCoeff, heatTransferExternalCoeff);
+        Cooler.HeatLoad = hotPoint.HeatLoad;
+        EnthalpyInterval interval = new EnthalpyInterval(coolerData.TemperatureOut, coolerData.TimperatureIn, hotPoint.TemperatureOut, hotPoint.TemperatureIn);
+        Cooler = CalculateUtility(interval, coolerData.Cost, Cooler, hotPoint.WaterEquivalent, coolerData.HeatTransferCoefficient);
+        return Cooler;
     }   
     /// <summary>
     /// Рассчитать утилиту
     /// </summary>
     /// <param name="interval">Интервал температур</param>
-    /// <param name="costRecuperator">Стоимость рекуператора</param>
     /// <param name="cost">Стоимость утилиты</param>
-    /// <param name="heatLoad">Тепловая нагрузка</param>
     /// <param name="heatTransferCoeff">Коэффициент теплопередачи утилиты</param>
     /// <param name="heatTransferExternalCoeff">Коэффициент теплопередачи внешней утилиты</param>
     /// <returns>Cуммарные затраты</returns>
-    private Utility CalculateUtility(EnthalpyInterval interval, double costRecuperator, double cost, Utility utility, double heatTransferCoeff, double heatTransferExternalCoeff)
+    private Utility CalculateUtility(EnthalpyInterval interval, double cost, Utility utility, double heatTransferCoeff, double heatTransferExternalCoeff)
     {
         double deltaT = GetLMTD(interval);
         //TODO общий коэффициент теплопередачи (без учёта сопротивления стенки R=δ/λ)
@@ -103,10 +101,25 @@
         utility.Area = utility.HeatLoad / (deltaT * overallHeatTransferCoeff);
 
         utility.OperatingCost = utility.HeatLoad * cost;
-        utility.CapitalCost = (costRecuperator * Math.Pow(utility.Area, _config.CGamma)) / _config.Years;
+        utility.CapitalCost = (config.CostCoeff * Math.Pow(utility.Area, _config.CGamma)) / _config.Years;
         utility.SummCost = utility.OperatingCost + utility.CapitalCost;
         utility.SummCost = (utility.HeatLoad != 0) ? (utility.SummCost / Math.Pow(utility.HeatLoad, _config.CostExponent)) : 0.0;
         return utility;
     }
-
+    public double GetSummCost()
+    {
+        double summCost = 0;
+        if (Heater != null) summCost += Heater.SummCost;
+        if (Cooler != null) summCost += Cooler.SummCost;
+        if (Recuperator != null) summCost += Recuperator.SummCost;
+        return summCost;
+    }
+}
+public enum TypeEBST
+{
+    CoolerAndHeater,
+    All,
+    RecuperatorAndHeater,
+    RecuperatorAndCooler,
+    Recuperator
 }
