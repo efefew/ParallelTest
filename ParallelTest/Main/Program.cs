@@ -4,6 +4,7 @@ using ILGPU.Runtime.CPU;
 using ILGPU.Runtime.Cuda;
 using ILGPU.Runtime.OpenCL;
 using System.Diagnostics;
+using System.Globalization;
 using System.Reflection;
 
 internal static class Program
@@ -39,7 +40,7 @@ internal static class Program
         ];
 
         DataMILP data = new (ebst, hotStreams, coldStreams, hotExternalUtilities, coldExternalUtilities);
-        Console.WriteLine(new Milp().Run(data));
+        Message.Normal(Milp.RunParallel(data).ToString(CultureInfo.InvariantCulture));
         Console.ReadLine();
     }
     private static void ParallelFunc(Func<double, double, double> func)

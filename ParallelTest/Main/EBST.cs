@@ -109,11 +109,3 @@ public class EBST(ConfigEBST config)
         return summCost;
     }
 }
-public enum TypeEBST
-{
-    CoolerAndHeater,
-    All,
-    RecuperatorAndHeater,
-    RecuperatorAndCooler,
-    Recuperator
-}

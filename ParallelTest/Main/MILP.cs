@@ -2,26 +2,6 @@
 
 using static ConfigEBST;
 
-internal class DataMILP(
-    ConfigEBST ebst,
-    List<FullEnergyStream> hotStreams,
-    List<FullEnergyStream> coldStreams,
-    List<ExternalUtility> hotExternalUtilities,
-    List<ExternalUtility> coldExternalUtilities)
-{
-    public List<FullEnergyStream> HotStreams = hotStreams, ColdStreams = coldStreams;
-    public List<ExternalUtility> HotExternalUtilities = hotExternalUtilities, ColdExternalUtilities = coldExternalUtilities;
-    public ConfigEBST Ebst = ebst;
-
-    public int GetHotLength(int id = 0)
-    {
-        return HotStreams.Count * HotStreams[id].Stages.Length * HotStreams[id].Divisions.Length;
-    }
-    public int GetColdLength(int id = 0)
-    {
-        return ColdStreams.Count * ColdStreams[id].Stages.Length * ColdStreams[id].Divisions.Length;
-    }
-}
 internal class Milp
 {
     //public void Run(DataMILP data)
@@ -117,8 +97,13 @@ internal class Milp
     //        }
     //    );
     //}
-
-    public double Run(DataMILP data)
+    
+    /// <summary>
+    /// РЕШЕНИЕ ЗАДАЧИ Mixed-Integer Linear Programming
+    /// </summary>
+    /// <param name="data">Входящие данные</param>
+    /// <returns></returns>
+    public static double Run(DataMILP data)
     {
         // ЭТАП 2 РЕШЕНИЕ ЗАДАЧИ MILP
         double summCost = 0;
@@ -140,12 +125,18 @@ internal class Milp
 
         foreach (Point c in combinations)
         {
-            summCost += SolveMILP(data, c, ebsts);
+            double cost = CalculateOptimalHeatTransfer(data, c, ebsts);
+            if (double.IsPositiveInfinity(cost) || double.IsNegativeInfinity(cost) || double.IsNaN(cost) ||
+                double.IsInfinity(cost))
+            {
+                Message.Error($"Error: cost of {c} is {cost}");
+            }
+            summCost += cost;
         }
         return summCost;
     }
 
-    public double RunParallel(DataMILP data)
+    public static double RunParallel(DataMILP data)
     {
         // Генерируем комбинации и сразу запускаем их параллельную обработку
         int hotCount = data.GetHotLength();
@@ -162,26 +153,25 @@ internal class Milp
             )
             .AsParallel() // Переводим LINQ в параллельный режим
             .WithDegreeOfParallelism(Environment.ProcessorCount) // Использовать все логические ядра
-            .Select(point => SolveMILP(data, point, ebsts)) // Передаем структуру в метод
+            .Select(point => CalculateOptimalHeatTransfer(data, point, ebsts)) // Передаем структуру в метод
             .Sum();
     }
     private const int ID_COOLER = 0;
     private const int ID_HEATER = 0;
     /// <summary>
-    /// РЕШЕНИЕ ЗАДАЧИ Mixed-Integer Linear Programming
+    /// НАХОЖДЕНИЕ ОПТИМАЛЬНЫХ ОЦЕНОК НА ТЕПЛООБМЕН ПАРЫ ПОТОКОВ
     /// </summary>
     /// <param name="data">Входящие данные</param>
     /// <param name="p">Точка, потенциально, для рекуператора</param>
     /// <param name="ebsts">Элементарные блоки системы теплообмена</param>
     /// <returns></returns>
-    private static double SolveMILP(DataMILP data, Point p, EBST[,] ebsts)
+    private static double CalculateOptimalHeatTransfer(DataMILP data, Point p, EBST[,] ebsts)
     {
         StageInDivision hotPoint = data.HotStreams[p.IdHotStream].Divisions[p.IdHotDivision].Stages[p.IdHotStage];
         StageInDivision coldPoint = data.ColdStreams[p.IdColdStream].Divisions[p.IdColdDivision].Stages[p.IdColdStage];
         EBST ebst = new (data.Ebst);
         
         CalculateOptimalHeatTransfer(data, hotPoint, coldPoint, ebst);
-        BuildSquareMatrix(data);
 
         GetIdPoints(data, p, out int idHot, out int idCold);
         ebsts[idHot, idCold] = ebst;
@@ -294,8 +284,8 @@ internal class Milp
     private static double GetSubTemperature(StageInDivision point, double heatLoadRecuperator, bool positive)
     {
         return point.HeatCapacity != 0
-            ? point.TemperatureIn
-            : point.TemperatureIn + (heatLoadRecuperator / point.HeatCapacity) * (positive ? 1.0 : -1.0);
+            ? point.TemperatureIn + (heatLoadRecuperator / point.HeatCapacity) * (positive ? 1.0 : -1.0)
+            : point.TemperatureIn;
     }
 
     private static void GetIdPoints(DataMILP data, Point p, out int idHot, out int idCold)
@@ -310,8 +300,3 @@ internal class Milp
         idCold = (p.IdColdStream * countColdDivisions * countColdStages) + (p.IdColdDivision * countColdStages) + p.IdColdStage;
     }
 }
-
-internal readonly record struct Point(
-    int IdHotStream, int IdHotStage, int IdHotDivision,
-    int IdColdStream, int IdColdStage, int IdColdDivision
-);

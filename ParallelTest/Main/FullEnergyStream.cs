@@ -2,6 +2,7 @@
 
 public class FullEnergyStream : EnergyStream
 {
+    private const double TOLERANCE_ERROR = 0.01;
     /// <summary>
     /// Стадии
     /// </summary>
@@ -29,6 +30,10 @@ public class FullEnergyStream : EnergyStream
 
     private void Build(double[] stages, double[] divisions)
     {
+        if (Math.Abs(stages.Sum() - 1.0) > TOLERANCE_ERROR)
+            Message.Error($"У потока {Name} сумма коэфф. стадий = {stages.Sum()}");
+        if (Math.Abs(divisions.Sum() - 1.0) > TOLERANCE_ERROR)
+            Message.Error($"У потока {Name} сумма коэфф. делений = {stages.Sum()}");
         BuildStages(stages);
         BuildDivisions(divisions);
     }
