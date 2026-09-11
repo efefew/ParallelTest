@@ -1,26 +1,31 @@
 ﻿/// <summary>
 /// Внешний энергоноситель (утилита)
 /// </summary>
-public class ExternalUtility
+public class ExternalUtility(
+    string name,
+    double temperatureIn,
+    double temperatureOut,
+    double heatTransferCoefficient,
+    double cost)
 {
     /// <summary>
     /// Имя утилиты
     /// </summary>
-    public string Name;
+    public string Name = name;
     /// <summary>
     /// Температура входная
     /// </summary>
-    public double TimperatureIn;
+    public double TemperatureIn = temperatureIn;
     /// <summary>
     /// Температура выходная
     /// </summary>
-    public double TemperatureOut;
+    public double TemperatureOut = temperatureOut;
     /// <summary>
     /// Коэффициент теплопередачи
     /// </summary>
-    public double HeatTransferCoefficient;
+    public double HeatTransferCoefficient = heatTransferCoefficient;
     /// <summary>
     /// Стоимость
     /// </summary>
-    public double Cost;
+    public double Cost = cost;
 }

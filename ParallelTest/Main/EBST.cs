@@ -21,6 +21,7 @@ public class EBST(ConfigEBST config)
     /// </summary>
     /// <param name="interval">Интервал</param>
     /// <returns></returns>
+    // ReSharper disable once InconsistentNaming
     private static double GetLMTD(EnthalpyInterval interval)
     {
         double dT1 = interval.TemperatureHotOut - interval.TemperatureColdIn;
@@ -30,59 +31,52 @@ public class EBST(ConfigEBST config)
 
     private const double TOLERANCE = 1e-5;
 
-    public Utility CalculateRecuperator(EnthalpyInterval interval, double cost, double heatLoad, double heatTransferCoeff, double heatTransferExternalCoeff)
+    public void CalculateRecuperator(double subColdT, double subHotT, StageInDivision coldPoint,
+        StageInDivision hotPoint, double heatLoad/*, double cost*/)
     {
-        if (Recuperator == null) Recuperator = new Utility();
+        Recuperator ??= new Utility();
+        EnthalpyInterval interval = new (subColdT, coldPoint.TemperatureIn, subHotT, hotPoint.TemperatureIn);
         Recuperator.HeatLoad = heatLoad;
         double deltaT = GetLMTD(interval);
-        double overallHeatTransferCoeff = 1 / (1 / heatTransferCoeff + 1 / heatTransferExternalCoeff);
+        double overallHeatTransferCoeff = 1 / (1 / coldPoint.WaterEquivalent + 1 / hotPoint.WaterEquivalent);
 
         Recuperator.Area = heatLoad / (deltaT * overallHeatTransferCoeff);
 
-        /*if ~isempty(isMax)
-        isMax = false;
-        end
-            maxLength = max((Nh_streams-Nh_sec_u)*Nq_i*Nl_i,(Nc_streams-Nc_sec_u)*Nq_j*Nl_j);
-        if (~isMax && i > (Nh_streams-Nh_sec_u)*Nq_i*Nl_i || j > (Nc_streams-Nc_sec_u)*Nq_j*Nl_j) || (isMax && i > maxLength || j > maxLength)
-        if (~isMax && i > (Nh_streams-Nh_sec_u)*Nq_i*Nl_i && j > (Nc_streams-Nc_sec_u)*Nq_j*Nl_j) || (isMax && i > maxLength && j > maxLength)
-        Cu_ = realmax;
-        else
-        Cu_ = Cu_sec_u;
-        end
-        else
-        Cu_ = 0;
-        end*/
-
-        Recuperator.OperatingCost = Recuperator.HeatLoad * cost;
+        Recuperator.OperatingCost = 0/*Recuperator.HeatLoad * cost*/;
         Recuperator.CapitalCost = (config.CostCoeff * Math.Pow(Recuperator.Area, _config.CGamma)) / _config.Years;
         Recuperator.SummCost = Recuperator.OperatingCost + Recuperator.CapitalCost;
         Recuperator.SummCost=(Recuperator.HeatLoad != 0) ? (Recuperator.SummCost / Math.Pow(Recuperator.HeatLoad, _config.CostExponent)) : 0.0;
-        return Recuperator;
-
+        
     }
     /// <summary>
     /// Рассчитать нагреватель
     /// </summary>
     /// <returns>Нагреватель</returns>
-    public Utility CalculateHeater(ExternalUtility heaterData, StageInDivision coldPoint)
+    public void CalculateHeater(ExternalUtility heaterData, StageInDivision coldPoint, double heatLoadRecuperator = 0, double? coldTin = null, double? coldTout = null, double? hotTin = null, double? hotTout = null)
     {
-        if (Heater == null) Heater = new Utility();
-        Heater.HeatLoad = coldPoint.HeatLoad;
-        EnthalpyInterval interval = new EnthalpyInterval(coldPoint.TemperatureIn, coldPoint.TemperatureOut, heaterData.TimperatureIn, heaterData.TemperatureOut);
+        Heater ??= new Utility();
+        Heater.HeatLoad = coldPoint.HeatLoad - heatLoadRecuperator;
+        EnthalpyInterval interval = new (
+            coldTin ?? coldPoint.TemperatureIn ,
+            coldTout ?? coldPoint.TemperatureOut,
+            hotTin ?? heaterData.TemperatureIn,
+            hotTout ?? heaterData.TemperatureOut);
         Heater = CalculateUtility(interval, heaterData.Cost, Heater, coldPoint.WaterEquivalent, heaterData.HeatTransferCoefficient);
-        return Heater;
     }
     /// <summary>
     /// Рассчитать холодильник
     /// </summary>
     /// <returns>Холодильник</returns>
-    public Utility CalculateCooler(ExternalUtility coolerData, StageInDivision hotPoint)
+    public void CalculateCooler(ExternalUtility coolerData, StageInDivision hotPoint, double heatLoadRecuperator = 0, double? coldTout = null, double? coldTin = null, double? hotTout = null, double? hotTin = null)
     {
-        if (Cooler == null) Cooler = new Utility();
-        Cooler.HeatLoad = hotPoint.HeatLoad;
-        EnthalpyInterval interval = new EnthalpyInterval(coolerData.TemperatureOut, coolerData.TimperatureIn, hotPoint.TemperatureOut, hotPoint.TemperatureIn);
+        Cooler ??= new Utility();
+        Cooler.HeatLoad = hotPoint.HeatLoad - heatLoadRecuperator;
+        EnthalpyInterval interval = new (
+            coldTout ?? coolerData.TemperatureOut,
+            coldTin ?? coolerData.TemperatureIn,
+            hotTout ?? hotPoint.TemperatureOut,
+            hotTin ?? hotPoint.TemperatureIn);
         Cooler = CalculateUtility(interval, coolerData.Cost, Cooler, hotPoint.WaterEquivalent, coolerData.HeatTransferCoefficient);
-        return Cooler;
     }   
     /// <summary>
     /// Рассчитать утилиту
@@ -101,9 +95,9 @@ public class EBST(ConfigEBST config)
         utility.Area = utility.HeatLoad / (deltaT * overallHeatTransferCoeff);
 
         utility.OperatingCost = utility.HeatLoad * cost;
-        utility.CapitalCost = (config.CostCoeff * Math.Pow(utility.Area, _config.CGamma)) / _config.Years;
+        utility.CapitalCost = config.CostCoeff * Math.Pow(utility.Area, _config.CGamma) / _config.Years;
         utility.SummCost = utility.OperatingCost + utility.CapitalCost;
-        utility.SummCost = (utility.HeatLoad != 0) ? (utility.SummCost / Math.Pow(utility.HeatLoad, _config.CostExponent)) : 0.0;
+        utility.SummCost = utility.HeatLoad != 0 ? utility.SummCost / Math.Pow(utility.HeatLoad, _config.CostExponent) : 0.0;
         return utility;
     }
     public double GetSummCost()

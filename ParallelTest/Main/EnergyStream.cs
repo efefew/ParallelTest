@@ -1,9 +1,9 @@
-﻿public class EnergyStream(string name, double w, double tin, double tout)
+﻿public class EnergyStream(double w, double tin, double tout, string? name = null)
 {
     /// <summary>
     /// Имя потока
     /// </summary>
-    public string Name = name;
+    public string Name = name ?? $"{tin} - {tout}";
     /// <summary>
     /// Температура входная
     /// </summary>
@@ -17,11 +17,11 @@
     /// </summary>
     public double WaterEquivalent = w;
 
-    public EnergyStream() : this(string.Empty, 0, 0, 0)
+    public EnergyStream() : this( 0, 0, 0)
     {
     }
 
-    public EnergyStream(double tin, double tout) : this(string.Empty, 0, tin, tout)
+    public EnergyStream(double tin, double tout) : this(0, tin, tout)
     {
     }
 

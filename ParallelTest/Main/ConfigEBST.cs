@@ -1,29 +1,40 @@
-﻿public struct ConfigEBST
+﻿// ReSharper disable once InconsistentNaming
+/// <summary>
+/// Данные для ЭБСТ
+/// </summary>
+/// <param name="minDeltaT">Минимально допустимая разность температур</param>
+/// <param name="cGamma">Коэффициент корреляции</param>
+/// <param name="years">Года</param>
+/// <param name="costExponent">Параметр как var в matlab</param>
+/// <param name="costCoeff">Cтоимостной коэффициент теплобменника($)</param>
+/// <param name="cost">Фиксированная стоимость</param>
+public struct ConfigEBST(double minDeltaT, double cGamma, int years, double costExponent, double costCoeff, double cost)
 {
     /// <summary>
     /// Минимально допустимая разность температур
     /// </summary>
-    public double MinDeltaT;
+    public double MinDeltaT = minDeltaT;
     /// <summary>
     /// Коэффициент корреляции
     /// </summary>
-    public double CGamma;
+    public double CGamma = cGamma;
     /// <summary>
     /// Года
     /// </summary>
-    public double Years;
+    public int Years = years;
     /// <summary>
     /// Параметр как var в matlab
     /// </summary>
-    public double CostExponent;
+    public double CostExponent = costExponent;
     /// <summary>
     /// Фиксированная стоимость
     /// </summary>
-    public double Cost;
+    public double Cost = cost;
     /// <summary>
     /// Cтоимостной коэффициент теплобменника($)
     /// </summary>
-    public double CostCoeff;
+    public double CostCoeff = costCoeff;
+
     /// <summary>
     /// Точность декомпозиции
     /// </summary>

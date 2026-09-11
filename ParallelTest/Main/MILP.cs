@@ -1,8 +1,17 @@
-﻿public class DataMILP
+﻿// ReSharper disable InconsistentNaming
+
+using static ConfigEBST;
+
+internal class DataMILP(
+    ConfigEBST ebst,
+    List<FullEnergyStream> hotStreams,
+    List<FullEnergyStream> coldStreams,
+    List<ExternalUtility> hotExternalUtilities,
+    List<ExternalUtility> coldExternalUtilities)
 {
-    public List<FullEnergyStream> HotStreams = new(), ColdStreams = new();
-    public List<ExternalUtility> HotExternalUtilities = new(), ColdExternalUtilities = new();
-    public ConfigEBST Ebst;
+    public List<FullEnergyStream> HotStreams = hotStreams, ColdStreams = coldStreams;
+    public List<ExternalUtility> HotExternalUtilities = hotExternalUtilities, ColdExternalUtilities = coldExternalUtilities;
+    public ConfigEBST Ebst = ebst;
 
     public int GetHotLength(int id = 0)
     {
@@ -109,13 +118,16 @@ internal class Milp
     //    );
     //}
 
-    public void Run(DataMILP data)
+    public double Run(DataMILP data)
     {
         // ЭТАП 2 РЕШЕНИЕ ЗАДАЧИ MILP
         double summCost = 0;
+        int hotCount = data.GetHotLength();
+        int coldCount = data.GetColdLength();
+        EBST[,] ebsts = new EBST[hotCount, coldCount];
 
         // ЭТАП 1 НАХОЖДЕНИЕ ОПТИМАЛЬНЫХ ОЦЕНОК НА ТЕПЛООБМЕН ПАРЫ ПОТОКОВ
-        var combinations =
+        IEnumerable<Point> combinations =
             from hStreamId in Enumerable.Range(0, data.HotStreams.Count)
             from hStageId in Enumerable.Range(0, data.HotStreams[hStreamId].Stages.Length)
             from hDivId in Enumerable.Range(0, data.HotStreams[hStreamId].Divisions.Length)
@@ -126,93 +138,180 @@ internal class Milp
 
             select new Point(hStreamId, hStageId, hDivId, cStreamId, cStageId, cDivId);
 
-        foreach (var c in combinations)
+        foreach (Point c in combinations)
         {
-            summCost += SolveMILP(data, c);
+            summCost += SolveMILP(data, c, ebsts);
         }
+        return summCost;
     }
 
-    public void RunParallel(DataMILP data)
-    {
-        double totalCost = GetTotalCost(data);
-    }
-
-    private double GetTotalCost(DataMILP data)
+    public double RunParallel(DataMILP data)
     {
         // Генерируем комбинации и сразу запускаем их параллельную обработку
-        return (
-            from hStreamId in Enumerable.Range(0, data.HotStreams.Count)
-            from hStageId in Enumerable.Range(0, data.HotStreams[hStreamId].Stages.Length)
-            from hDivId in Enumerable.Range(0, data.HotStreams[hStreamId].Divisions.Length)
-            from cStreamId in Enumerable.Range(0, data.ColdStreams.Count)
-            from cStageId in Enumerable.Range(0, data.ColdStreams[cStreamId].Stages.Length)
-            from cDivId in Enumerable.Range(0, data.ColdStreams[cStreamId].Divisions.Length)
-            select new Point(hStreamId, hStageId, hDivId, cStreamId, cStageId, cDivId)
-        )
-        .AsParallel() // Переводим LINQ в параллельный режим
-        .WithDegreeOfParallelism(Environment.ProcessorCount) // Использовать все логические ядра
-        .Select(point => SolveMILP(data, point)) // Передаем структуру в метод
-        .Sum(); // Потокобезопасное сложение результатов
-    }
-
-    private double SolveMILP(DataMILP data, Point p)
-    {
-        StageInDivision hotPoint = data.HotStreams[p.IdHotStream].Divisions[p.IdHotDivision].Stages[p.IdHotStage];
-        StageInDivision coldPoint = data.ColdStreams[p.IdColdStream].Divisions[p.IdColdDivision].Stages[p.IdColdStage];
-
         int hotCount = data.GetHotLength();
         int coldCount = data.GetColdLength();
         EBST[,] ebsts = new EBST[hotCount, coldCount];
+        return (
+                from hStreamId in Enumerable.Range(0, data.HotStreams.Count)
+                from hStageId in Enumerable.Range(0, data.HotStreams[hStreamId].Stages.Length)
+                from hDivId in Enumerable.Range(0, data.HotStreams[hStreamId].Divisions.Length)
+                from cStreamId in Enumerable.Range(0, data.ColdStreams.Count)
+                from cStageId in Enumerable.Range(0, data.ColdStreams[cStreamId].Stages.Length)
+                from cDivId in Enumerable.Range(0, data.ColdStreams[cStreamId].Divisions.Length)
+                select new Point(hStreamId, hStageId, hDivId, cStreamId, cStageId, cDivId)
+            )
+            .AsParallel() // Переводим LINQ в параллельный режим
+            .WithDegreeOfParallelism(Environment.ProcessorCount) // Использовать все логические ядра
+            .Select(point => SolveMILP(data, point, ebsts)) // Передаем структуру в метод
+            .Sum();
+    }
+    private const int ID_COOLER = 0;
+    private const int ID_HEATER = 0;
+    /// <summary>
+    /// РЕШЕНИЕ ЗАДАЧИ Mixed-Integer Linear Programming
+    /// </summary>
+    /// <param name="data">Входящие данные</param>
+    /// <param name="p">Точка, потенциально, для рекуператора</param>
+    /// <param name="ebsts">Элементарные блоки системы теплообмена</param>
+    /// <returns></returns>
+    private static double SolveMILP(DataMILP data, Point p, EBST[,] ebsts)
+    {
+        StageInDivision hotPoint = data.HotStreams[p.IdHotStream].Divisions[p.IdHotDivision].Stages[p.IdHotStage];
+        StageInDivision coldPoint = data.ColdStreams[p.IdColdStream].Divisions[p.IdColdDivision].Stages[p.IdColdStage];
+        EBST ebst = new (data.Ebst);
+        
+        CalculateOptimalHeatTransfer(data, hotPoint, coldPoint, ebst);
+        BuildSquareMatrix(data);
 
         GetIdPoints(data, p, out int idHot, out int idCold);
-
-        const int ID_COOLER = 0;
-        const int ID_HEATER = 0;
-
-        if (hotPoint.TemperatureIn - coldPoint.TemperatureIn < data.Ebst.MinDeltaT)
+        ebsts[idHot, idCold] = ebst;
+        return ebst.GetSummCost();
+    }
+    /// <summary>
+    /// Построение матрицы квадратного вида
+    /// </summary>
+    /// <param name="data">Входящие данные</param>
+    private static void BuildSquareMatrix(DataMILP data)
+    {
+        int hotCount = data.GetHotLength();
+        int coldCount = data.GetColdLength();
+        if (hotCount < coldCount)
         {
-            ebsts[idHot, idCold] = new(data.Ebst);
-            ebsts[idHot, idCold].CalculateCooler(data.ColdExternalUtilities[ID_COOLER], hotPoint);
-            ebsts[idHot, idCold].CalculateHeater(data.HotExternalUtilities[ID_HEATER], coldPoint);
+            //TODO понять как здесь реализовать
+        }
+        else if (hotCount > coldCount)
+        {
+            //TODO понять как  здесь реализовать
+        }
+    }
+    /// <summary>
+    /// НАХОЖДЕНИЕ ОПТИМАЛЬНЫХ ОЦЕНОК НА ТЕПЛООБМЕН ПАРЫ ПОТОКОВ
+    /// </summary>
+    /// <param name="data">Входящие данные</param>
+    /// <param name="hotPoint">Горячая точка, потенциально, для рекуператора</param>
+    /// <param name="coldPoint">Холодная точка, потенциально, для рекуператора</param>
+    /// <param name="ebst">Элементарный блок системы теплообмена</param>
+    private static void CalculateOptimalHeatTransfer(DataMILP data, StageInDivision hotPoint, StageInDivision coldPoint,
+        EBST ebst)
+    {
+        if (hotPoint.TemperatureIn - coldPoint.TemperatureIn < data.Ebst.MinDeltaT)
+            EBST1(data, ebst, hotPoint, coldPoint);
+        else
+        {
+            double heatLoadRecuperator = Math.Min(hotPoint.HeatLoad, coldPoint.HeatLoad);
+            double subColdT = GetSubTemperature(coldPoint, heatLoadRecuperator, true);
+            double subHotT = GetSubTemperature(hotPoint, heatLoadRecuperator, false);
+
+            double deltaT1 = subHotT - coldPoint.TemperatureIn;
+            double deltaT2 = hotPoint.TemperatureIn - subColdT;
+            if(deltaT1 < data.Ebst.MinDeltaT || deltaT2 < data.Ebst.MinDeltaT)
+                EBST2(data, deltaT2, deltaT1, coldPoint, hotPoint, ebst);
+            else if(hotPoint.HeatLoad + TOLERANCE_DECOMPOSITION < coldPoint.HeatLoad)
+                EBST3(data, hotPoint, coldPoint, ebst);
+            else if(hotPoint.HeatLoad > coldPoint.HeatLoad + TOLERANCE_DECOMPOSITION)
+                EBST4(data, coldPoint, hotPoint, ebst);
+            else
+                EBST5(coldPoint, ebst, hotPoint);
+        }
+    }
+
+    private static void EBST5(StageInDivision coldPoint, EBST ebst, StageInDivision hotPoint)
+    {
+        ebst.CalculateRecuperator(coldPoint.TemperatureOut, hotPoint.TemperatureOut, coldPoint, hotPoint, coldPoint.HeatLoad);
+    }
+
+    private static void EBST4(DataMILP data, StageInDivision coldPoint, StageInDivision hotPoint, EBST ebst)
+    {
+        double heatLoadRecuperator = coldPoint.HeatLoad;
+        double subHotT = GetSubTemperature(hotPoint, heatLoadRecuperator, false);
+        ebst.CalculateRecuperator(coldPoint.TemperatureOut, subHotT, coldPoint, hotPoint, heatLoadRecuperator);
+        ebst.CalculateCooler(data.ColdExternalUtilities[ID_COOLER], hotPoint, hotTin : subHotT, heatLoadRecuperator: heatLoadRecuperator);
+    }
+
+    private static void EBST3(DataMILP data, StageInDivision hotPoint, StageInDivision coldPoint, EBST ebst)
+    {
+        double heatLoadRecuperator = hotPoint.HeatLoad;
+        double subColdT = GetSubTemperature(coldPoint, heatLoadRecuperator, true);
+        ebst.CalculateRecuperator(subColdT, hotPoint.TemperatureOut, coldPoint, hotPoint, heatLoadRecuperator);
+        ebst.CalculateHeater(data.HotExternalUtilities[ID_HEATER], coldPoint, coldTin : subColdT, heatLoadRecuperator: heatLoadRecuperator);
+    }
+
+    private static void EBST2(DataMILP data, double deltaT2, double deltaT1, StageInDivision coldPoint,
+        StageInDivision hotPoint, EBST ebst)
+    {
+        double subHotT, subColdT, heatLoadRecuperator;
+        if(deltaT2 > deltaT1)
+        {
+            subHotT = data.Ebst.MinDeltaT + coldPoint.TemperatureIn;
+            heatLoadRecuperator = hotPoint.HeatCapacity * (hotPoint.TemperatureIn - subHotT);
+            subColdT = GetSubTemperature(coldPoint, heatLoadRecuperator, true);
         }
         else
         {
-            double heatLoadRecuperator = Math.Min(hotPoint.HeatLoad, coldPoint.HeatLoad); // выбор минимального количества теплоты, затраченного на охлаждение/нагревание
-            double intermediateColdTemperature = // нахождение температуры промежуточного холодного потока
-                coldPoint.HeatCapacity != 0 ? 
-                coldPoint.TemperatureIn : 
-                coldPoint.TemperatureIn + (heatLoadRecuperator / coldPoint.HeatCapacity);
-            double intermediateHotTemperature =  // нахождение температуры промежуточного горячего потока
-                hotPoint.HeatCapacity != 0 ?
-                hotPoint.TemperatureIn :
-                hotPoint.TemperatureIn - (heatLoadRecuperator / hotPoint.HeatCapacity);
-
-            double deltaT1 = intermediateHotTemperature - coldPoint.TemperatureIn; // разность промежуточного горячего и входного холодного
-            double deltaT2 = hotPoint.TemperatureIn - intermediateColdTemperature; // разность промежуточного горячего и входного холодного
-            if(deltaT1 < data.Ebst.MinDeltaT || deltaT2 < data.Ebst.MinDeltaT)
-            {
-                // ЭБСТ2 Полноструктурный блок
-                if(deltaT2 > deltaT1) // ЭБСТ2 Случай 1
-                {
-                    intermediateHotTemperature = data.Ebst.MinDeltaT + coldPoint.TemperatureIn; // нахождение температуры промежуточного горячего потока
-                }
-            }
+            subColdT = hotPoint.TemperatureIn - data.Ebst.MinDeltaT;
+            heatLoadRecuperator = coldPoint.HeatCapacity * (subColdT - coldPoint.TemperatureIn);
+            subHotT = GetSubTemperature(hotPoint, heatLoadRecuperator, false);
         }
-        return 0;
+        
+        ebst.CalculateRecuperator(subColdT, subHotT, coldPoint, hotPoint, heatLoadRecuperator);
+        ebst.CalculateCooler(data.ColdExternalUtilities[ID_COOLER], hotPoint, hotTin : subHotT, heatLoadRecuperator: heatLoadRecuperator);
+        ebst.CalculateHeater(data.HotExternalUtilities[ID_HEATER], coldPoint, coldTin : subColdT, heatLoadRecuperator: heatLoadRecuperator);
     }
+
+    private static void EBST1(DataMILP data, EBST ebst, StageInDivision hotPoint, StageInDivision coldPoint)
+    {
+        ebst.CalculateCooler(data.ColdExternalUtilities[ID_COOLER], hotPoint);
+        ebst.CalculateHeater(data.HotExternalUtilities[ID_HEATER], coldPoint);
+    }
+
+    /// <summary>
+    /// Нахождение температуры промежуточного потока
+    /// </summary>
+    /// <param name="point"></param>
+    /// <param name="heatLoadRecuperator"></param>
+    /// <param name="positive"></param>
+    /// <returns></returns>
+    private static double GetSubTemperature(StageInDivision point, double heatLoadRecuperator, bool positive)
+    {
+        return point.HeatCapacity != 0
+            ? point.TemperatureIn
+            : point.TemperatureIn + (heatLoadRecuperator / point.HeatCapacity) * (positive ? 1.0 : -1.0);
+    }
+
     private static void GetIdPoints(DataMILP data, Point p, out int idHot, out int idCold)
     {
-        int CountHotDivisions = data.HotStreams[p.IdHotStream].Divisions.Length; // Количество делений (горячие)
-        int CountHotStages = data.HotStreams[p.IdHotStream].Stages.Length; // Количество ступеней (горячие)
+        int countHotDivisions = data.HotStreams[p.IdHotStream].Divisions.Length; // Количество делений (горячие)
+        int countHotStages = data.HotStreams[p.IdHotStream].Stages.Length; // Количество ступеней (горячие)
 
-        int CountColdDivisions = data.ColdStreams[p.IdColdStream].Divisions.Length; // Количество делений (холодные)
-        int CountColdStages = data.ColdStreams[p.IdColdStream].Stages.Length; // Количество ступеней (холодные)
+        int countColdDivisions = data.ColdStreams[p.IdColdStream].Divisions.Length; // Количество делений (холодные)
+        int countColdStages = data.ColdStreams[p.IdColdStream].Stages.Length; // Количество ступеней (холодные)
 
-        idHot = (p.IdHotStream * CountHotDivisions * CountHotStages) + (p.IdHotDivision * CountHotStages) + p.IdHotStage;
-        idCold = (p.IdColdStream * CountColdDivisions * CountColdStages) + (p.IdColdDivision * CountColdStages) + p.IdColdStage;
+        idHot = (p.IdHotStream * countHotDivisions * countHotStages) + (p.IdHotDivision * countHotStages) + p.IdHotStage;
+        idCold = (p.IdColdStream * countColdDivisions * countColdStages) + (p.IdColdDivision * countColdStages) + p.IdColdStage;
     }
 }
-public readonly record struct Point(
+
+internal readonly record struct Point(
     int IdHotStream, int IdHotStage, int IdHotDivision,
     int IdColdStream, int IdColdStage, int IdColdDivision
 );

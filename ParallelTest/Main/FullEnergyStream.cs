@@ -12,16 +12,16 @@ public class FullEnergyStream : EnergyStream
     /// </summary>
     public double HeatCapacity;
     /// <summary>
-    /// Потоки делелния
+    /// Потоки деления
     /// </summary>
     public Division[] Divisions;
 
-    public FullEnergyStream(string name, double w, double tin, double tout, double heatCapacity, double[] stages, double[] divisions) : base(name, w, tin, tout)
+    public FullEnergyStream(double w, double tin, double tout, double heatCapacity, double[] stages, double[] divisions, string name = null) : base( w, tin, tout, name)
     {
         HeatCapacity = heatCapacity;
         Build(stages, divisions);
     }
-    public FullEnergyStream(EnergyStream energyStream, double heatCapacity, double[] stages, double[] divisions) : base(energyStream.Name, energyStream.WaterEquivalent, energyStream.TemperatureIn, energyStream.TemperatureOut)
+    public FullEnergyStream(EnergyStream energyStream, double heatCapacity, double[] stages, double[] divisions) : base(energyStream.WaterEquivalent, energyStream.TemperatureIn, energyStream.TemperatureOut, energyStream.Name)
     {
         HeatCapacity = heatCapacity;
         Build(stages, divisions);
@@ -36,7 +36,7 @@ public class FullEnergyStream : EnergyStream
     private void BuildDivisions(double[] divisions)
     {
         Divisions = new Division[divisions.Length];
-        for (int idDivision = 1; idDivision < Divisions.Length; idDivision++)
+        for (int idDivision = 0; idDivision < Divisions.Length; idDivision++)
         {
             Divisions[idDivision] = new Division(divisions[idDivision], Stages, this);
         }
@@ -49,7 +49,7 @@ public class FullEnergyStream : EnergyStream
             double shiftTemperature = Heat * stages[0] / HeatCapacity;
             if (TemperatureIn > TemperatureOut) shiftTemperature = -shiftTemperature;
             Stages[0] = new Stage(stages[0], TemperatureIn, TemperatureIn + shiftTemperature);
-            for (int idStage = 0; idStage < Stages.Length; idStage++)
+            for (int idStage = 1; idStage < Stages.Length; idStage++)
             {
                 double tin = GetDivT(idStage - 1, stages[idStage - 1], Stages[idStage - 1].TemperatureIn);
                 Stages[idStage] = new Stage(stages[idStage], tin, GetDivT(idStage, stages[idStage], tin));

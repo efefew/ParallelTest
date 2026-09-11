@@ -94,35 +94,6 @@ for hs=1:1:(Nh_streams)
         dQhe_UB_trans(hs,cs)=dQhe_UB(hs,cs)/U_he(hs,cs);
     end
 end
-% M_COL=min(dQhe_UB); % минимальный элемент в столбце
-% M_STR=min(dQhe_UB,[],2); % минимальный элемент в строке
-% B_COL=sort(dQhe_UB); % сортировка в столбце
-% B_STR=sort(dQhe_UB,2); % сортировка в строке
-% 
-% for hs=1:1:Nh_streams
-%     sum_Beta=0;
-%     for q=1:(Nq_i-1)
-%         if q==1
-%         Beta_i(hs,q)=B_STR(hs,q)/QhSUM(hs);
-%         else
-%         Beta_i(hs,q)=(B_STR(hs,q)-B_STR(hs,(q-1)))/QhSUM(hs);    
-%         end
-%         sum_Beta=sum_Beta+Beta_i(hs,q);
-%     end
-%     Beta_i(hs,Nq_i)=1-sum_Beta;
-% end
-% for cs=1:1:Nc_streams
-%      sum_Beta=0;
-%      for q=1:(Nq_j-1)
-%          if q==1
-%          Beta_j(cs,q)=B_COL(q,cs)/QcSUM(cs);
-%          else
-%          Beta_j(cs,q)=(B_COL(q,cs)-B_COL((q-1),cs))/QcSUM(cs);
-%          end
-%          sum_Beta=sum_Beta+Beta_j(cs,q);
-%      end
-%      Beta_j(cs,Nq_j)=1-sum_Beta;
-% end
 
 for hs=1:1:(Nh_streams) 
     for q=1:Nq_i
