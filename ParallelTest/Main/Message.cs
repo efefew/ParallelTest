@@ -10,6 +10,12 @@
         Console.WriteLine(message);
         Console.ResetColor();
     }
+    public static void Done(string message)
+    {
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine(message);
+        Console.ResetColor();
+    }
     public static void Error(string message)
     {
         Console.ForegroundColor = ConsoleColor.Red;

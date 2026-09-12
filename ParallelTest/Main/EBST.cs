@@ -1,4 +1,5 @@
 ﻿using Accord;
+// ReSharper disable InconsistentNaming
 
 public class EBST(ConfigEBST config)
 {
@@ -21,8 +22,7 @@ public class EBST(ConfigEBST config)
     /// </summary>
     /// <param name="interval">Интервал</param>
     /// <returns></returns>
-    // ReSharper disable once InconsistentNaming
-    private static double GetLMTD(EnthalpyInterval interval)
+    private static double GetLMTD(TemperatureInterval interval)
     {
         double dT1 = interval.TemperatureHotOut - interval.TemperatureColdIn;
         double dT2 = interval.TemperatureHotIn - interval.TemperatureColdOut;
@@ -35,7 +35,7 @@ public class EBST(ConfigEBST config)
         StageInDivision hotPoint, double heatLoad/*, double cost*/)
     {
         Recuperator ??= new Utility();
-        EnthalpyInterval interval = new (subColdT, coldPoint.TemperatureIn, subHotT, hotPoint.TemperatureIn);
+        TemperatureInterval interval = new (subColdT, coldPoint.TemperatureIn, subHotT, hotPoint.TemperatureIn);
         Recuperator.HeatLoad = heatLoad;
         double deltaT = GetLMTD(interval);
         double overallHeatTransferCoeff = 1 / (1 / coldPoint.WaterEquivalent + 1 / hotPoint.WaterEquivalent);
@@ -56,7 +56,7 @@ public class EBST(ConfigEBST config)
     {
         Heater ??= new Utility();
         Heater.HeatLoad = coldPoint.HeatLoad - heatLoadRecuperator;
-        EnthalpyInterval interval = new (
+        TemperatureInterval interval = new (
             coldTin ?? coldPoint.TemperatureIn ,
             coldTout ?? coldPoint.TemperatureOut,
             hotTin ?? heaterData.TemperatureIn,
@@ -71,7 +71,7 @@ public class EBST(ConfigEBST config)
     {
         Cooler ??= new Utility();
         Cooler.HeatLoad = hotPoint.HeatLoad - heatLoadRecuperator;
-        EnthalpyInterval interval = new (
+        TemperatureInterval interval = new (
             coldTout ?? coolerData.TemperatureOut,
             coldTin ?? coolerData.TemperatureIn,
             hotTout ?? hotPoint.TemperatureOut,
@@ -86,7 +86,7 @@ public class EBST(ConfigEBST config)
     /// <param name="heatTransferCoeff">Коэффициент теплопередачи утилиты</param>
     /// <param name="heatTransferExternalCoeff">Коэффициент теплопередачи внешней утилиты</param>
     /// <returns>Cуммарные затраты</returns>
-    private Utility CalculateUtility(EnthalpyInterval interval, double cost, Utility utility, double heatTransferCoeff, double heatTransferExternalCoeff)
+    private Utility CalculateUtility(TemperatureInterval interval, double cost, Utility utility, double heatTransferCoeff, double heatTransferExternalCoeff)
     {
         double deltaT = GetLMTD(interval);
         //TODO общий коэффициент теплопередачи (без учёта сопротивления стенки R=δ/λ)
