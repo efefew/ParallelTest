@@ -1,6 +1,9 @@
 ﻿using Accord;
 // ReSharper disable InconsistentNaming
-
+/// <summary>
+/// Элементарный блок системы теплообмена
+/// </summary>
+/// <param name="config"></param>
 public class EBST(ConfigEBST config)
 {
     private ConfigEBST _config = config;

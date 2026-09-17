@@ -1,4 +1,4 @@
 ﻿internal readonly record struct Point(
-    int IdHotStream, int IdHotStage, int IdHotDivision,
-    int IdColdStream, int IdColdStage, int IdColdDivision
+    int HotStream, int HotStage, int HotDivision,
+    int ColdStream, int ColdStage, int ColdDivision
 );

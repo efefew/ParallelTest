@@ -1,68 +1,156 @@
 ﻿// ReSharper disable InconsistentNaming
 
+using Accord.Math;
 using static ConfigEBST;
 
 internal static class Milp
 {
-    public static double RunParallel1(DataMILP data)
-{
-    int hotCount = data.HotStreams.Length;
-    int coldCount = data.ColdStreams.Length;
-    int totalPairs = hotCount * coldCount;
+    public static double RunParallel2(DataMILP data)
+    {
+        int countTasks = 100;
+        Task[] tasks = new Task[countTasks];
+        int hotCount = data.GetHotLength();
+        int coldCount = data.GetColdLength();
+        int totalIterations = hotCount * coldCount;
 
-    object lockObj = new object();
-    double totalCost = 0;
-    //Environment.ProcessorCount
+        int sizePerTask = totalIterations / countTasks;
+        int remainder = totalIterations % countTasks;
 
-    // Параллельный цикл по парам потоков (HotStream x ColdStream)
-    Parallel.For(0, totalPairs,
-        () => 0.0, // Инициализация локальной суммы для каждого потока CPU
-        (pairId, _, localSum) =>
+        EBST[,] ebsts = new EBST[hotCount, coldCount];
+        
+        for (int idTask = 0; idTask < countTasks; idTask++)
         {
-            // Декодируем плоский индекс обратно в ID потоков
-            int hStreamId = pairId / coldCount;
-            int cStreamId = pairId % coldCount;
+            tasks[idTask] = new Task(Chunk(data, ebsts, idTask, remainder, sizePerTask));
+            tasks[idTask].Start();
+        }
 
-            FullEnergyStream hotStream = data.HotStreams[hStreamId];
-            FullEnergyStream coldStream = data.ColdStreams[cStreamId];
 
-            int hStagesLen = hotStream.Stages.Length;
-            int hDivsLen = hotStream.Divisions.Length;
-            int cStagesLen = coldStream.Stages.Length;
-            int cDivsLen = coldStream.Divisions.Length;
+        Task.WaitAll(tasks);
+        double summCost = 0;
+        /*for (int x = 0; x < ebsts.GetLength(0); x++)
+            for (int y = 0; y < ebsts.GetLength(1); y++)
+                summCost += ebsts[x, y].GetSummCost();*/
+        return summCost;
+    }
+private static Action Chunk(DataMILP data, EBST[,] ebsts, int taskId, int remainder, int sizePerTask)
+{
+    int maxHotStage = data.HotStreams[0].Stages.Length;
+    int maxHotDivision = data.HotStreams[0].Divisions.Length;
+    int maxColdStream = data.ColdStreams.Length;
+    int maxColdStage = data.ColdStreams[0].Stages.Length;
+    int maxColdDivision = data.ColdStreams[0].Divisions.Length;
 
-            // Вложенные циклы по стадиям и делениям выполняются последовательно внутри потока
-            for (int hStageId = 0; hStageId < hStagesLen; hStageId++)
+    int startIdx = taskId * sizePerTask + Math.Min(taskId, remainder);
+    int endIdx = startIdx + sizePerTask + (taskId < remainder ? 1 : 0);
+
+    return () =>
+    {
+        // 5. Итерируемся по выделенному линейному диапазону
+        for (long i = startIdx; i < endIdx; i++)
+        {
+            // Восстанавливаем 6D-координаты из линейного индекса `i`
+            long rem = i;
+
+            int idColdDivision = (int)(rem % maxColdDivision); 
+            rem /= maxColdDivision;
+            int idColdStage    = (int)(rem % maxColdStage);    
+            rem /= maxColdStage;
+            int idColdStream   = (int)(rem % maxColdStream);   
+            rem /= maxColdStream;
+            int idHotDivision  = (int)(rem % maxHotDivision);  
+            rem /= maxHotDivision;
+            int idHotStage     = (int)(rem % maxHotStage);     
+            rem /= maxHotStage;
+            int idHotStream    = (int)rem;
+
+            // 6. Выполняем полезную работу
+            Point p = new(idHotStream, idHotStage, idHotDivision, idColdStream, idColdStage, idColdDivision);
+            GetIdPoints(data, p, out int idHot, out int idCold);
+            
+            EBST result = CalculateOptimalHeatTransfer(data, p);
+            ebsts[idHot, idCold] = result;
+        }
+    };
+}
+    private static Action Chunk(DataMILP data, EBST[,] ebsts, int countTasks)
+    {
+        return () =>
+        {
+            Point min = new();//инициализируй относительно countTasks
+            Point max = new();//инициализируй относительно countTasks
+            
+            for (int idHotStream = min.HotStream; idHotStream < max.HotStream; idHotStream++)
+            for (int idHotStage = min.HotStage; idHotStage < max.HotStage; idHotStage++)
+            for (int idHotDivision = min.HotDivision; idHotDivision < max.HotDivision; idHotDivision++)
+            for (int idColdStream = min.ColdStream; idColdStream < max.ColdStream; idColdStream++)
+            for (int idColdStage = min.ColdStage; idColdStage < max.ColdStage; idColdStage++)
+            for (int idColdDivision = min.ColdDivision; idColdDivision < max.ColdDivision; idColdDivision++)
             {
-                for (int hDivId = 0; hDivId < hDivsLen; hDivId++)
+                Point p = new(idHotStream, idHotStage, idHotDivision, idColdStream, idColdStage, idColdDivision);
+                GetIdPoints(data, p, out int idHot, out int idCold);
+                ebsts[idHot, idCold] = CalculateOptimalHeatTransfer(data, p);
+            }
+        };
+    }
+    public static double RunParallel1(DataMILP data)
+    {
+        int hotCount = data.HotStreams.Length;
+        int coldCount = data.ColdStreams.Length;
+        int totalPairs = hotCount * coldCount;
+    
+        object lockObj = new object();
+        double totalCost = 0;
+        //Environment.ProcessorCount
+    
+        // Параллельный цикл по парам потоков (HotStream x ColdStream)
+        Parallel.For(0, totalPairs,
+            () => 0.0, // Инициализация локальной суммы для каждого потока CPU
+            (pairId, _, localSum) =>
+            {
+                // Декодируем плоский индекс обратно в ID потоков
+                int hStreamId = pairId / coldCount;
+                int cStreamId = pairId % coldCount;
+    
+                FullEnergyStream hotStream = data.HotStreams[hStreamId];
+                FullEnergyStream coldStream = data.ColdStreams[cStreamId];
+    
+                int hStagesLen = hotStream.Stages.Length;
+                int hDivsLen = hotStream.Divisions.Length;
+                int cStagesLen = coldStream.Stages.Length;
+                int cDivsLen = coldStream.Divisions.Length;
+    
+                // Вложенные циклы по стадиям и делениям выполняются последовательно внутри потока
+                for (int hStageId = 0; hStageId < hStagesLen; hStageId++)
                 {
-                    for (int cStageId = 0; cStageId < cStagesLen; cStageId++)
+                    for (int hDivId = 0; hDivId < hDivsLen; hDivId++)
                     {
-                        for (int cDivId = 0; cDivId < cDivsLen; cDivId++)
+                        for (int cStageId = 0; cStageId < cStagesLen; cStageId++)
                         {
-                            Point point = new(hStreamId, hStageId, hDivId, cStreamId, cStageId, cDivId);
-                            
-                            // Вычисляем и сразу суммируем результат, не сохраняя его в список
-                            EBST result = CalculateOptimalHeatTransfer(data, point);
-                            localSum += result.GetSummCost();
+                            for (int cDivId = 0; cDivId < cDivsLen; cDivId++)
+                            {
+                                Point point = new(hStreamId, hStageId, hDivId, cStreamId, cStageId, cDivId);
+                                
+                                // Вычисляем и сразу суммируем результат, не сохраняя его в список
+                                EBST result = CalculateOptimalHeatTransfer(data, point);
+                                localSum += result.GetSummCost();
+                            }
                         }
                     }
                 }
-            }
-
-            return localSum; // Возвращаем накопленную сумму потока
-        },
-        localSum =>
-        {
-            // Безопасно суммируем результаты потоков в общую переменную (вызывается редко)
-            lock (lockObj)
+    
+                return localSum; // Возвращаем накопленную сумму потока
+            },
+            localSum =>
             {
-                totalCost += localSum;
-            }
-        });
-
-    return totalCost;
-}
+                // Безопасно суммируем результаты потоков в общую переменную (вызывается редко)
+                lock (lockObj)
+                {
+                    totalCost += localSum;
+                }
+            });
+    
+        return totalCost;
+    }
     /// <summary>
     /// РЕШЕНИЕ ЗАДАЧИ Mixed-Integer Linear Programming
     /// </summary>
@@ -103,8 +191,8 @@ internal static class Milp
     /// <returns></returns>
     private static EBST CalculateOptimalHeatTransfer(DataMILP data, Point p)
     {
-        StageInDivision hotPoint = data.HotStreams[p.IdHotStream].Divisions[p.IdHotDivision].Stages[p.IdHotStage];
-        StageInDivision coldPoint = data.ColdStreams[p.IdColdStream].Divisions[p.IdColdDivision].Stages[p.IdColdStage];
+        StageInDivision hotPoint = data.HotStreams[p.HotStream].Divisions[p.HotDivision].Stages[p.HotStage];
+        StageInDivision coldPoint = data.ColdStreams[p.ColdStream].Divisions[p.ColdDivision].Stages[p.ColdStage];
         EBST ebst = new (data.Ebst);
         
         CalculateOptimalHeatTransfer(data, hotPoint, coldPoint, ebst);
@@ -223,13 +311,13 @@ internal static class Milp
 
     private static void GetIdPoints(DataMILP data, Point p, out int idHot, out int idCold)
     {
-        int countHotDivisions = data.HotStreams[p.IdHotStream].Divisions.Length; // Количество делений (горячие)
-        int countHotStages = data.HotStreams[p.IdHotStream].Stages.Length; // Количество ступеней (горячие)
+        int countHotDivisions = data.HotStreams[p.HotStream].Divisions.Length; // Количество делений (горячие)
+        int countHotStages = data.HotStreams[p.HotStream].Stages.Length; // Количество ступеней (горячие)
 
-        int countColdDivisions = data.ColdStreams[p.IdColdStream].Divisions.Length; // Количество делений (холодные)
-        int countColdStages = data.ColdStreams[p.IdColdStream].Stages.Length; // Количество ступеней (холодные)
+        int countColdDivisions = data.ColdStreams[p.ColdStream].Divisions.Length; // Количество делений (холодные)
+        int countColdStages = data.ColdStreams[p.ColdStream].Stages.Length; // Количество ступеней (холодные)
 
-        idHot = (p.IdHotStream * countHotDivisions * countHotStages) + (p.IdHotDivision * countHotStages) + p.IdHotStage;
-        idCold = (p.IdColdStream * countColdDivisions * countColdStages) + (p.IdColdDivision * countColdStages) + p.IdColdStage;
+        idHot = (p.HotStream * countHotDivisions * countHotStages) + (p.HotDivision * countHotStages) + p.HotStage;
+        idCold = (p.ColdStream * countColdDivisions * countColdStages) + (p.ColdDivision * countColdStages) + p.ColdStage;
     }
 }

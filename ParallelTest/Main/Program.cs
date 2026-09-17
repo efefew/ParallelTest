@@ -34,12 +34,12 @@ internal static class Program
         ExternalUtility[] coldExternalUtilities = [new("Cold", 303, 315, 1, 10)];
 
         DataMILP data = new (ebst, hotStreams, coldStreams, hotExternalUtilities, coldExternalUtilities);
-
-        Tests.CompareTestTimes(Parallel1, Mono, 50000);
+        Tests.CompareTestTimes(Parallel1, Parallel2, 50000);
         return;
 
         void Mono() => Milp.Run(data);
 
         void Parallel1() => Milp.RunParallel1(data);
+        void Parallel2() => Milp.RunParallel2(data);
     }
 }

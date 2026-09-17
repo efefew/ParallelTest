@@ -11,7 +11,7 @@ public class FullEnergyStream : EnergyStream
     /// <summary>
     /// Теплоёмкость входная
     /// </summary>
-    public double HeatCapacity;
+    public double HeatCapacity { get; }
     /// <summary>
     /// Потоки деления
     /// </summary>
@@ -71,18 +71,10 @@ public class FullEnergyStream : EnergyStream
     }
 
 
-    private double? _heat;
     /// <summary>
     /// Количество теплоты
     /// </summary>
-    public double Heat
-    {
-        get
-        {
-            _heat ??= HeatCapacity * Math.Abs(TemperatureIn - TemperatureOut);
-            return (double)_heat;
-        }
-    }
+    public double Heat => HeatCapacity * Math.Abs(TemperatureIn - TemperatureOut);
 }
 
 public class Division
