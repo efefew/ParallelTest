@@ -1,6 +1,13 @@
 ﻿namespace HenSQP
 {
     using Accord.Math.Optimization;
+
+    public enum ExitflagType
+    {
+        Success = 1,
+        Error = -1,
+        OverLimit = 0
+    }
     public class HenOptimization
     {
         // Класс для возврата результатов (аналог выходных аргументов MATLAB)
@@ -8,13 +15,18 @@
         {
             public double[]? XEbst { get; set; }
             public double SumEbst { get; set; }
-            public int FlagEbst { get; set; }
+            /// <summary>
+            /// Статус успеха
+            /// <br></br>
+            /// Имитация exitflag из MATLAB (1 = сошелся, 0 = превышен лимит, -1 = ошибка)
+            /// </summary>
+            public ExitflagType Exitflag { get; set; }
         }
     
-        public static OptimResult HEN_optim_EBST(double[] dQheEbst)
+        public static OptimResult HEN_optim_EBST(double dQhe)
         {
             // 1. Начальная точка (x0)
-            double[] x0 = (double[])dQheEbst.Clone();
+            double[] x0 = [dQhe];
     
             // 2. Определение целевой функции через структуру Accord.NET
             int numberOfVariables = x0.Length;
@@ -52,7 +64,7 @@
                 XEbst = cobyla.Solution,
                 SumEbst = cobyla.Value,
                 // Имитация exitflag из MATLAB (1 = сошелся, 0 = превышен лимит, -1 = ошибка)
-                FlagEbst = success ? 1 : (cobyla.Iterations >= cobyla.MaxIterations ? 0 : -1)
+                Exitflag = success ? ExitflagType.Success : (cobyla.Iterations >= cobyla.MaxIterations ? ExitflagType.OverLimit : ExitflagType.Error)
             };
         }
     

@@ -1,6 +1,7 @@
 ﻿// ReSharper disable InconsistentNaming
 
 using Accord.Math;
+using HenSQP;
 using static ConfigEBST;
 
 internal static class Milp
@@ -151,6 +152,63 @@ private static Action Chunk(DataMILP data, EBST[,] ebsts, int taskId, int remain
     
         return totalCost;
     }
+
+    public static double RunParallelNew(DataMILP data)
+    {
+        int hotCount = data.HotStreams.Length;
+        int coldCount = data.ColdStreams.Length;
+        int totalPairs = hotCount * coldCount;
+    
+        object lockObj = new object();
+        double totalCost = 0;
+        //Environment.ProcessorCount
+    
+        // Параллельный цикл по парам потоков (HotStream x ColdStream)
+        Parallel.For(0, totalPairs,
+            () => 0.0, // Инициализация локальной суммы для каждого потока CPU
+            (pairId, _, localSum) =>
+            {
+                // Декодируем плоский индекс обратно в ID потоков
+                int hStreamId = pairId / coldCount;
+                int cStreamId = pairId % coldCount;
+    
+                FullEnergyStream hotStream = data.HotStreams[hStreamId];
+                FullEnergyStream coldStream = data.ColdStreams[cStreamId];
+    
+                int hStagesLen = hotStream.Stages.Length;
+                int hDivsLen = hotStream.Divisions.Length;
+                int cStagesLen = coldStream.Stages.Length;
+                int cDivsLen = coldStream.Divisions.Length;
+    
+                // Вложенные циклы по стадиям и делениям выполняются последовательно внутри потока
+                for (int hStageId = 0; hStageId < hStagesLen; hStageId++)
+                {
+                    for (int hDivId = 0; hDivId < hDivsLen; hDivId++)
+                    {
+                        for (int cStageId = 0; cStageId < cStagesLen; cStageId++)
+                        {
+                            for (int cDivId = 0; cDivId < cDivsLen; cDivId++)
+                            {
+                                Point point = new(hStreamId, hStageId, hDivId, cStreamId, cStageId, cDivId);
+                                localSum += CalculateOptimalHeatTransfer2(data, point);
+                            }
+                        }
+                    }
+                }
+    
+                return localSum; // Возвращаем накопленную сумму потока
+            },
+            localSum =>
+            {
+                // Безопасно суммируем результаты потоков в общую переменную (вызывается редко)
+                lock (lockObj)
+                {
+                    totalCost += localSum;
+                }
+            });
+    
+        return totalCost;
+    }
     /// <summary>
     /// РЕШЕНИЕ ЗАДАЧИ Mixed-Integer Linear Programming
     /// </summary>
@@ -245,7 +303,33 @@ private static Action Chunk(DataMILP data, EBST[,] ebsts, int taskId, int remain
                 EBST5(coldPoint, ebst, hotPoint);
         }
     }
+    private static double CalculateOptimalHeatTransfer2(DataMILP data, Point p)
+    {
+        StageInDivision hotPoint = data.HotStreams[p.HotStream].Divisions[p.HotDivision].Stages[p.HotStage];
+        StageInDivision coldPoint = data.ColdStreams[p.ColdStream].Divisions[p.ColdDivision].Stages[p.ColdStage];
+        /*EBST ebst = new (data.Ebst);*/
+        double heatLoadRecuperator = Math.Min(hotPoint.HeatLoad, coldPoint.HeatLoad);
+        double subColdT = GetSubTemperature(coldPoint, heatLoadRecuperator, true);
+        double subHotT = GetSubTemperature(hotPoint, heatLoadRecuperator, false);
 
+        double deltaT1 = subHotT - coldPoint.TemperatureIn;
+        double deltaT2 = hotPoint.TemperatureIn - subColdT;
+        if(deltaT2 > deltaT1)
+        {
+            subHotT = data.Ebst.MinDeltaT + coldPoint.TemperatureIn;
+            heatLoadRecuperator = hotPoint.HeatCapacity * (hotPoint.TemperatureIn - subHotT);
+            /*subColdT = GetSubTemperature(coldPoint, heatLoadRecuperator, true);*/
+        }
+        else
+        {
+            subColdT = hotPoint.TemperatureIn - data.Ebst.MinDeltaT;
+            heatLoadRecuperator = coldPoint.HeatCapacity * (subColdT - coldPoint.TemperatureIn);
+            /*subHotT = GetSubTemperature(hotPoint, heatLoadRecuperator, false);*/
+        }
+        
+        HenOptimization.OptimResult result = HenOptimization.HEN_optim_EBST(heatLoadRecuperator);
+        return result.SumEbst;
+    }
     private static void EBST5(StageInDivision coldPoint, EBST ebst, StageInDivision hotPoint)
     {
         ebst.CalculateRecuperator(coldPoint.TemperatureOut, hotPoint.TemperatureOut, coldPoint, hotPoint, coldPoint.HeatLoad);
