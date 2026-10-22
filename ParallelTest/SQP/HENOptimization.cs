@@ -1,5 +1,6 @@
 ﻿namespace HenSQP
 {
+    using Accord;
     using Accord.Math.Optimization;
 
     public enum ExitflagType
@@ -49,7 +50,7 @@
             }
     
             // 4. Добавление нелинейных ограничений
-            AddCustomConstraints(constraints, numberOfVariables);
+            HEN_constraints_EBST(constraints, numberOfVariables);
     
             // 5. Настройка и инициализация решателя COBYLA (вместо отсутствующего SQP)
             Cobyla cobyla = new(objectiveFunction, constraints.ToArray())
@@ -70,26 +71,37 @@
             };
         }
     
-        // Заглушка для целевой функции
+        /// <summary>
+        /// Критерий ЭБСТ
+        /// </summary>
+        /// <param name="x">Нагрузка рекуператора</param>
+        /// <returns>Сумма затрат ЭБСТ</returns>
         private double HEN_criteriy_EBST(double[] x)
         {
-            return x[0] * x[0];
+            double heatLoadRecuperator = x[0];
+            double subHotT = MILP.GetSubTemperature(_data.HotPoint, heatLoadRecuperator, false);
+            double subColdT = MILP.GetSubTemperature(_data.ColdPoint, heatLoadRecuperator, true);
+
+            _data.Ebst.CalculateCooler(_data.Milp.ColdExternalUtilities[MILP.ID_COOLER], _data.HotPoint, heatLoadRecuperator);
+            _data.Ebst.CalculateHeater(_data.Milp.HotExternalUtilities[MILP.ID_HEATER], _data.ColdPoint, heatLoadRecuperator);
+            _data.Ebst.CalculateRecuperator(subColdT, subHotT, _data.HotPoint, _data.ColdPoint, heatLoadRecuperator);
+
+            return _data.Ebst.GetSummCost();
         }
     
         // Метод для добавления нелинейных ограничений
-        private void AddCustomConstraints(List<NonlinearConstraint> constraints, int nVars)
+        private void HEN_constraints_EBST(List<NonlinearConstraint> constraints, int nVars)
         {
-            // Ограничение-неравенство (<= 0)
-            constraints.Add(new NonlinearConstraint(nVars, x => x[0] + x[1] - 5 <= 0));
-            
-            // Чтобы сымитировать строгое равенство (== 0), преобразуем его в два противоположных неравенства:
-            constraints.Add(new NonlinearConstraint(nVars, x => x[0] * x[1] - 10 <= 0));
+
             constraints.Add(new NonlinearConstraint(nVars, x => x[0] * x[1] - 10 >= 0));
         }
     }
 
-    public class HenOptimizationData
+    public class HenOptimizationData(EBST ebst, DataMILP milp, StageInDivision hotPoint, StageInDivision coldPoint)
     {
-        
+        public StageInDivision HotPoint = hotPoint;
+        public StageInDivision ColdPoint = coldPoint;
+        public EBST Ebst = ebst;
+        public DataMILP Milp = milp;
     }
 }

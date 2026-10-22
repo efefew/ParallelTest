@@ -4,7 +4,7 @@ using Accord.Math;
 using HenSQP;
 using static ConfigEBST;
 
-internal static class Milp
+internal static class MILP
 {
     public static double RunParallel2(DataMILP data)
     {
@@ -239,8 +239,8 @@ private static Action Chunk(DataMILP data, EBST[,] ebsts, int taskId, int remain
         return summCost;
     }
     
-    private const int ID_COOLER = 0;
-    private const int ID_HEATER = 0;
+    public const int ID_COOLER = 0;
+    public const int ID_HEATER = 0;
     /// <summary>
     /// НАХОЖДЕНИЕ ОПТИМАЛЬНЫХ ОЦЕНОК НА ТЕПЛООБМЕН ПАРЫ ПОТОКОВ
     /// </summary>
@@ -307,7 +307,6 @@ private static Action Chunk(DataMILP data, EBST[,] ebsts, int taskId, int remain
     {
         StageInDivision hotPoint = data.HotStreams[p.HotStream].Divisions[p.HotDivision].Stages[p.HotStage];
         StageInDivision coldPoint = data.ColdStreams[p.ColdStream].Divisions[p.ColdDivision].Stages[p.ColdStage];
-        /*EBST ebst = new (data.Ebst);*/
         double heatLoadRecuperator = Math.Min(hotPoint.HeatLoad, coldPoint.HeatLoad);
         double subColdT = GetSubTemperature(coldPoint, heatLoadRecuperator, true);
         double subHotT = GetSubTemperature(hotPoint, heatLoadRecuperator, false);
@@ -327,7 +326,8 @@ private static Action Chunk(DataMILP data, EBST[,] ebsts, int taskId, int remain
             /*subHotT = GetSubTemperature(hotPoint, heatLoadRecuperator, false);*/
         }
 
-        HenOptimizationData dataOptimization = new HenOptimizationData();
+        EBST ebst = new (data.Ebst);
+        HenOptimizationData dataOptimization = new HenOptimizationData(ebst, data, hotPoint, coldPoint);
         HenOptimization henOptimization = new HenOptimization(dataOptimization);
         HenOptimization.OptimResult result = henOptimization.HEN_optim_EBST(heatLoadRecuperator);
         return result.SumEbst;
@@ -388,7 +388,7 @@ private static Action Chunk(DataMILP data, EBST[,] ebsts, int taskId, int remain
     /// <param name="heatLoadRecuperator"></param>
     /// <param name="positive"></param>
     /// <returns></returns>
-    private static double GetSubTemperature(StageInDivision point, double heatLoadRecuperator, bool positive)
+    public static double GetSubTemperature(StageInDivision point, double heatLoadRecuperator, bool positive)
     {
         return point.HeatCapacity != 0
             ? point.TemperatureIn + (heatLoadRecuperator / point.HeatCapacity) * (positive ? 1.0 : -1.0)

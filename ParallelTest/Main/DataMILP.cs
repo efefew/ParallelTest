@@ -1,4 +1,4 @@
-﻿internal class DataMILP(
+﻿public class DataMILP(
     ConfigEBST ebst,
     FullEnergyStream[] hotStreams,
     FullEnergyStream[] coldStreams,

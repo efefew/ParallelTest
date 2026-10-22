@@ -34,13 +34,13 @@ internal static class Program
         ExternalUtility[] coldExternalUtilities = [new("Cold", 303, 315, 1, 10)];
 
         DataMILP data = new (ebst, hotStreams, coldStreams, hotExternalUtilities, coldExternalUtilities);
-        Message.Normal(Milp.RunParallelNew(data).ToString(CultureInfo.InvariantCulture));
+        Message.Normal(MILP.RunParallelNew(data).ToString(CultureInfo.InvariantCulture));
         //Tests.CompareTestTimes(Parallel1, Parallel2, 50000);
         return;
 
-        void Mono() => Milp.Run(data);
+        void Mono() => MILP.Run(data);
 
-        void Parallel1() => Milp.RunParallel1(data);
-        void Parallel2() => Milp.RunParallel2(data);
+        void Parallel1() => MILP.RunParallel1(data);
+        void Parallel2() => MILP.RunParallel2(data);
     }
 }
