@@ -8,7 +8,7 @@
         Error = -1,
         OverLimit = 0
     }
-    public class HenOptimization
+    public class HenOptimization(HenOptimizationData data)
     {
         // Класс для возврата результатов (аналог выходных аргументов MATLAB)
         public class OptimResult
@@ -22,8 +22,10 @@
             /// </summary>
             public ExitflagType Exitflag { get; set; }
         }
-    
-        public static OptimResult HEN_optim_EBST(double dQhe)
+
+        private HenOptimizationData _data = data;
+
+        public OptimResult HEN_optim_EBST(double dQhe)
         {
             // 1. Начальная точка (x0)
             double[] x0 = [dQhe];
@@ -69,13 +71,13 @@
         }
     
         // Заглушка для целевой функции
-        private static double HEN_criteriy_EBST(double[] x)
+        private double HEN_criteriy_EBST(double[] x)
         {
             return x[0] * x[0];
         }
     
         // Метод для добавления нелинейных ограничений
-        private static void AddCustomConstraints(List<NonlinearConstraint> constraints, int nVars)
+        private void AddCustomConstraints(List<NonlinearConstraint> constraints, int nVars)
         {
             // Ограничение-неравенство (<= 0)
             constraints.Add(new NonlinearConstraint(nVars, x => x[0] + x[1] - 5 <= 0));
@@ -84,5 +86,10 @@
             constraints.Add(new NonlinearConstraint(nVars, x => x[0] * x[1] - 10 <= 0));
             constraints.Add(new NonlinearConstraint(nVars, x => x[0] * x[1] - 10 >= 0));
         }
+    }
+
+    public class HenOptimizationData
+    {
+        
     }
 }

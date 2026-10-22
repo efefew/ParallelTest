@@ -326,8 +326,10 @@ private static Action Chunk(DataMILP data, EBST[,] ebsts, int taskId, int remain
             heatLoadRecuperator = coldPoint.HeatCapacity * (subColdT - coldPoint.TemperatureIn);
             /*subHotT = GetSubTemperature(hotPoint, heatLoadRecuperator, false);*/
         }
-        
-        HenOptimization.OptimResult result = HenOptimization.HEN_optim_EBST(heatLoadRecuperator);
+
+        HenOptimizationData dataOptimization = new HenOptimizationData();
+        HenOptimization henOptimization = new HenOptimization(dataOptimization);
+        HenOptimization.OptimResult result = henOptimization.HEN_optim_EBST(heatLoadRecuperator);
         return result.SumEbst;
     }
     private static void EBST5(StageInDivision coldPoint, EBST ebst, StageInDivision hotPoint)
