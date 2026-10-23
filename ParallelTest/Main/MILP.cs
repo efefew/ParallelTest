@@ -152,7 +152,46 @@ private static Action Chunk(DataMILP data, EBST[,] ebsts, int taskId, int remain
     
         return totalCost;
     }
+    public static double RunNew(DataMILP data)
+    {
+        int hotCount = data.HotStreams.Length;
+        int coldCount = data.ColdStreams.Length;
 
+        double totalCost = 0;
+
+        // Последовательные циклы по горячим и холодным потокам вместо плоского Parallel.For
+        for (int hStreamId = 0; hStreamId < hotCount; hStreamId++)
+        {
+            FullEnergyStream hotStream = data.HotStreams[hStreamId];
+            int hStagesLen = hotStream.Stages.Length;
+            int hDivsLen = hotStream.Divisions.Length;
+
+            for (int cStreamId = 0; cStreamId < coldCount; cStreamId++)
+            {
+                FullEnergyStream coldStream = data.ColdStreams[cStreamId];
+                int cStagesLen = coldStream.Stages.Length;
+                int cDivsLen = coldStream.Divisions.Length;
+
+                // Вложенные циклы по стадиям и делениям
+                for (int hStageId = 0; hStageId < hStagesLen; hStageId++)
+                {
+                    for (int hDivId = 0; hDivId < hDivsLen; hDivId++)
+                    {
+                        for (int cStageId = 0; cStageId < cStagesLen; cStageId++)
+                        {
+                            for (int cDivId = 0; cDivId < cDivsLen; cDivId++)
+                            {
+                                Point point = new(hStreamId, hStageId, hDivId, cStreamId, cStageId, cDivId);
+                                totalCost += CalculateOptimalHeatTransfer2(data, point);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return totalCost;
+    }
     public static double RunParallelNew(DataMILP data)
     {
         int hotCount = data.HotStreams.Length;

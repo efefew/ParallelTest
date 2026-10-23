@@ -37,6 +37,7 @@ public class EBST(ConfigEBST config)
     public void CalculateRecuperator(double subColdT, double subHotT, StageInDivision coldPoint,
         StageInDivision hotPoint, double heatLoad/*, double cost*/)
     {
+        if (heatLoad < 0) return;
         Recuperator ??= new Utility();
         TemperatureInterval interval = new (subColdT, coldPoint.TemperatureIn, subHotT, hotPoint.TemperatureIn);
         Recuperator.HeatLoad = heatLoad;
@@ -44,7 +45,11 @@ public class EBST(ConfigEBST config)
         double overallHeatTransferCoeff = 1 / (1 / coldPoint.WaterEquivalent + 1 / hotPoint.WaterEquivalent);
 
         Recuperator.Area = heatLoad / (deltaT * overallHeatTransferCoeff);
-
+        if (Recuperator.Area < 0)
+        {
+            Recuperator = null;
+            return;
+        }
         Recuperator.OperatingCost = 0/*Recuperator.HeatLoad * cost*/;
         Recuperator.CapitalCost = (config.CostCoeff * Math.Pow(Recuperator.Area, _config.CGamma)) / _config.Years;
         Recuperator.SummCost = Recuperator.OperatingCost + Recuperator.CapitalCost;
@@ -80,23 +85,29 @@ public class EBST(ConfigEBST config)
             hotTout ?? hotPoint.TemperatureOut,
             hotTin ?? hotPoint.TemperatureIn);
         Cooler = CalculateUtility(interval, coolerData.Cost, Cooler, hotPoint.WaterEquivalent, coolerData.HeatTransferCoefficient);
-    }   
+    }
+
+    private const float MIN_AREA = 0;
+
     /// <summary>
     /// Рассчитать утилиту
     /// </summary>
     /// <param name="interval">Интервал температур</param>
     /// <param name="cost">Стоимость утилиты</param>
+    /// <param name="utility">утилита</param>
     /// <param name="heatTransferCoeff">Коэффициент теплопередачи утилиты</param>
     /// <param name="heatTransferExternalCoeff">Коэффициент теплопередачи внешней утилиты</param>
     /// <returns>Cуммарные затраты</returns>
-    private Utility CalculateUtility(TemperatureInterval interval, double cost, Utility utility, double heatTransferCoeff, double heatTransferExternalCoeff)
+    private Utility? CalculateUtility(TemperatureInterval interval, double cost, Utility utility, double heatTransferCoeff, double heatTransferExternalCoeff)
     {
+        if (utility.HeatLoad <= 0) return null;
         double deltaT = GetLMTD(interval);
         //TODO общий коэффициент теплопередачи (без учёта сопротивления стенки R=δ/λ)
         double overallHeatTransferCoeff = 1 / (1 / heatTransferCoeff + 1 / heatTransferExternalCoeff);
         
         utility.Area = utility.HeatLoad / (deltaT * overallHeatTransferCoeff);
-
+        if (utility.Area <= MIN_AREA) return null;
+        
         utility.OperatingCost = utility.HeatLoad * cost;
         utility.CapitalCost = config.CostCoeff * Math.Pow(utility.Area, _config.CGamma) / _config.Years;
         utility.SummCost = utility.OperatingCost + utility.CapitalCost;
