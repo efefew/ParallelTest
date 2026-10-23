@@ -47,7 +47,7 @@
             }
     
             // 4. Добавление нелинейных ограничений
-            HEN_constraints_EBST(constraints, numberOfVariables);
+            HEN_constraints_EBST2(constraints, numberOfVariables);
     
             // 5. Настройка и инициализация решателя COBYLA (вместо отсутствующего SQP)
             Cobyla cobyla = new(objectiveFunction, constraints.ToArray())
@@ -150,8 +150,8 @@
                 return dQcol - ConfigEBST.TOLERANCE_CONSTR;
             }));
         }
-
-                /// <summary>
+        
+        /// <summary>
         /// Ограничения задачи оптимизации ЭБСТ (изменено на <= 0)
         /// </summary>
         /// <param name="constraints">Ограничения</param>
