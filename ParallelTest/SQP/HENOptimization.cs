@@ -47,7 +47,7 @@
             }
     
             // 4. Добавление нелинейных ограничений
-            HEN_constraints_EBST2(constraints, numberOfVariables);
+            HEN_constraints_EBST(constraints, numberOfVariables);
     
             // 5. Настройка и инициализация решателя COBYLA (вместо отсутствующего SQP)
             Cobyla cobyla = new(objectiveFunction, constraints.ToArray())
@@ -85,78 +85,13 @@
 
             return _data.Ebst.GetSummCost();
         }
-
+        
         /// <summary>
         /// Ограничения задачи оптимизации ЭБСТ
         /// </summary>
         /// <param name="constraints">Ограничения</param>
         /// <param name="nVars"></param>
         private void HEN_constraints_EBST(List<NonlinearConstraint> constraints, int nVars)
-        {
-            // 1. Ограничение E1: Напор на горячем конце рекуператора (dt1 >= delTij)
-            // В MATLAB: delTij - (Thin - tCoutm) <= 0  ==>  Thin - tCoutm - delTij >= 0
-            constraints.Add(new NonlinearConstraint(nVars, x =>
-            {
-                double subColdT = MILP.GetSubTemperature(_data.ColdPoint, x[0], true);
-                return _data.HotPoint.TemperatureIn - subColdT - _data.Milp.Ebst.MinDeltaT;
-            }));
-
-            // 2. Ограничение E2: Напор на холодном конце рекуператора (dt2 >= delTij)
-            // В MATLAB: delTij - (tHoutm - Tcin) <= 0  ==>  tHoutm - Tcin - delTij >= 0
-            constraints.Add(new NonlinearConstraint(nVars, x =>
-            {
-                double subHotT = MILP.GetSubTemperature(_data.HotPoint, x[0], false);
-                return subHotT - _data.ColdPoint.TemperatureIn - _data.Milp.Ebst.MinDeltaT;
-            }));
-
-            // 3. Ограничение R1: Напор на выходе из нагревателя (dt1 >= delTij)
-            constraints.Add(new NonlinearConstraint(nVars, x =>
-            {
-                double subColdT = MILP.GetSubTemperature(_data.ColdPoint, x[0], true);
-                return _data.Milp.HotExternalUtilities[MILP.ID_HEATER].TemperatureOut - subColdT - _data.Milp.Ebst.MinDeltaT;
-            }));
-
-            // 4. Ограничение R2: Напор на входе в нагреватель (dt2 >= delTij)
-            constraints.Add(new NonlinearConstraint(nVars, x =>
-            {
-                return _data.Milp.HotExternalUtilities[MILP.ID_HEATER].TemperatureIn - _data.ColdPoint.TemperatureOut - _data.Milp.Ebst.MinDeltaT;
-            }));
-
-            // 5. Ограничение R3: Положительность тепловой нагрузки нагревателя (dQreb >= TOLERANCE)
-            // В MATLAB: -dQreb + TOLERANCE <= 0  ==>  dQreb - TOLERANCE >= 0
-            constraints.Add(new NonlinearConstraint(nVars, x =>
-            {
-                double dQreb = _data.ColdPoint.HeatLoad - x[0];
-                return dQreb - ConfigEBST.TOLERANCE_CONSTR;
-            }));
-
-            // 6. Ограничение C1: Напор на входе в холодильник (dt1 >= delTij)
-            constraints.Add(new NonlinearConstraint(nVars, x =>
-            {
-                double subHotT = MILP.GetSubTemperature(_data.HotPoint, x[0], false);
-                return subHotT - _data.Milp.ColdExternalUtilities[MILP.ID_COOLER].TemperatureOut - _data.Milp.Ebst.MinDeltaT;
-            }));
-
-            // 7. Ограничение C2: Напор на выходе из холодильника (dt2 >= delTij)
-            constraints.Add(new NonlinearConstraint(nVars, x =>
-            {
-                return _data.HotPoint.TemperatureOut - _data.Milp.ColdExternalUtilities[MILP.ID_COOLER].TemperatureIn - _data.Milp.Ebst.MinDeltaT;
-            }));
-
-            // 8. Ограничение C3: Положительность тепловой нагрузки холодильника (dQcol >= TOLERANCE)
-            constraints.Add(new NonlinearConstraint(nVars, x =>
-            {
-                double dQcol = _data.HotPoint.HeatLoad - x[0];
-                return dQcol - ConfigEBST.TOLERANCE_CONSTR;
-            }));
-        }
-        
-        /// <summary>
-        /// Ограничения задачи оптимизации ЭБСТ (изменено на <= 0)
-        /// </summary>
-        /// <param name="constraints">Ограничения</param>
-        /// <param name="nVars"></param>
-        private void HEN_constraints_EBST2(List<NonlinearConstraint> constraints, int nVars)
         {
             // 1. Ограничение E1: Напор на горячем конце рекуператора
             // Было: Thin - tCoutm - delTij >= 0  ==>  Стало: delTij - (Thin - tCoutm) <= 0
@@ -218,75 +153,6 @@
             {
                 double dQcol = _data.HotPoint.HeatLoad - x[0];
                 return ConfigEBST.TOLERANCE_CONSTR - dQcol;
-            }));
-        }
-        /// <summary>
-        /// Ограничения задачи оптимизации ЭБСТ (LHS для формы LHS <= 0)
-        /// </summary>
-        /// <param name="constraints">Ограничения</param>
-        /// <param name="nVars"></param>
-        private void HEN_constraints_EBST3(List<NonlinearConstraint> constraints, int nVars)
-        {
-            // 1. Ограничение E1: Напор на горячем конце рекуператора (dt1 >= delTij)
-            // Форма LHS <= 0: delTij - (Thin - tCoutm) <= 0
-            constraints.Add(new NonlinearConstraint(nVars, x =>
-            {
-                double subColdT = MILP.GetSubTemperature(_data.ColdPoint, x[0], true);
-                return _data.Milp.Ebst.MinDeltaT - (_data.HotPoint.TemperatureIn - subColdT);
-            }));
-
-            // 2. Ограничение E2: Напор на холодном конце рекуператора (dt2 >= delTij)
-            // Форма LHS <= 0: delTij - (tHoutm - Tcin) <= 0
-            constraints.Add(new NonlinearConstraint(nVars, x =>
-            {
-                double subHotT = MILP.GetSubTemperature(_data.HotPoint, x[0], false);
-                return _data.Milp.Ebst.MinDeltaT - (subHotT - _data.ColdPoint.TemperatureIn);
-            }));
-
-            // 3. Ограничение R1: Напор на выходе из нагревателя (dt1 >= delTij)
-            // Форма LHS <= 0: delTij - (Tout_h - subColdT) <= 0
-            constraints.Add(new NonlinearConstraint(nVars, x =>
-            {
-                double subColdT = MILP.GetSubTemperature(_data.ColdPoint, x[0], true);
-                return _data.Milp.Ebst.MinDeltaT - (_data.Milp.HotExternalUtilities[MILP.ID_HEATER].TemperatureOut - subColdT);
-            }));
-
-            // 4. Огранижение R2: Напор на входе в нагреватель (dt2 >= delTij)
-            // Форма LHS <= 0: delTij - (Tin_h - Tcout) <= 0
-            constraints.Add(new NonlinearConstraint(nVars, x =>
-            {
-                return _data.Milp.Ebst.MinDeltaT - (_data.Milp.HotExternalUtilities[MILP.ID_HEATER].TemperatureIn - _data.ColdPoint.TemperatureOut);
-            }));
-
-            // 5. Ограничение R3: Положительность тепловой нагрузки нагревателя (dQreb >= TOLERANCE)
-            // Форма LHS <= 0: -dQreb + TOLERANCE <= 0
-            constraints.Add(new NonlinearConstraint(nVars, x =>
-            {
-                double dQreb = _data.ColdPoint.HeatLoad - x[0];
-                return -dQreb + ConfigEBST.TOLERANCE_CONSTR;
-            }));
-
-            // 6. Ограничение C1: Напор на входе в холодильник (dt1 >= delTij)
-            // Форма LHS <= 0: delTij - (subHotT - Tout_c) <= 0
-            constraints.Add(new NonlinearConstraint(nVars, x =>
-            {
-                double subHotT = MILP.GetSubTemperature(_data.HotPoint, x[0], false);
-                return _data.Milp.Ebst.MinDeltaT - (subHotT - _data.Milp.ColdExternalUtilities[MILP.ID_COOLER].TemperatureOut);
-            }));
-
-            // 7. Ограничение C2: Напор на выходе из холодильника (dt2 >= delTij)
-            // Форма LHS <= 0: delTij - (Thout - Tin_c) <= 0
-            constraints.Add(new NonlinearConstraint(nVars, x =>
-            {
-                return _data.Milp.Ebst.MinDeltaT - (_data.HotPoint.TemperatureOut - _data.Milp.ColdExternalUtilities[MILP.ID_COOLER].TemperatureIn);
-            }));
-
-            // 8. Ограничение C3: Положительность тепловой нагрузки холодильника (dQcol >= TOLERANCE)
-            // Форма LHS <= 0: -dQcol + TOLERANCE <= 0
-            constraints.Add(new NonlinearConstraint(nVars, x =>
-            {
-                double dQcol = _data.HotPoint.HeatLoad - x[0];
-                return -dQcol + ConfigEBST.TOLERANCE_CONSTR;
             }));
         }
     }
